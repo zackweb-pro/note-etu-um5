@@ -467,6 +467,39 @@
     filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.3));
 }
 
+/* Table highlighting styles for notes */
+.um5-note-above-average {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+}
+
+.um5-note-below-average {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+    font-weight: bold !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+}
+
+.um5-note-above-average:hover {
+    background-color: #059669 !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+}
+
+.um5-note-below-average:hover {
+    background-color: #dc2626 !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4) !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .um5-notes-calculator {

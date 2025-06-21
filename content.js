@@ -219,15 +219,81 @@
         if (table && table.parentNode) {
             table.parentNode.insertBefore(displayDiv, table.nextSibling);
         }
-    }
-
-    // Function to remove existing display
+    }    // Function to remove existing display
     function removeExistingDisplay() {
         const existingDisplay = document.querySelector(`#${EXTENSION_ID}-display`);
         if (existingDisplay) {
             existingDisplay.remove();
         }
-    }    // Main function to run the calculator
+        // Also remove highlighting from the table
+        removeHighlighting();
+    }// Function to highlight notes in the actual table
+    function highlightNotesInTable(modules, generalAverage) {
+        const table = document.querySelector('table.table-bordered tbody');
+        if (!table) return;
+
+        const rows = Array.from(table.querySelectorAll('tr'));
+        let moduleIndex = 0;
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 8) {
+                const moduleType = cells[1].textContent.trim();
+
+                // Only highlight module (MO) rows
+                if (moduleType === 'MO' && moduleIndex < modules.length) {
+                    const module = modules[moduleIndex];
+                    const session1NoteCell = cells[2];
+                    const session2NoteCell = cells[5];
+
+                    // Determine which note was used as final note
+                    let usedNoteCell = null;
+                    let usedNote = module.finalNote;
+
+                    if (module.session1Result === 'Validé') {
+                        usedNoteCell = session1NoteCell;
+                    } else if (module.session1Result === 'Rattrapage' || module.session1Result === 'Ajourné') {
+                        usedNoteCell = session2NoteCell;
+                    } else {
+                        usedNoteCell = session1NoteCell;
+                    }                    // Apply highlighting based on comparison with general average
+                    if (usedNoteCell && usedNote > 0) {
+                        // Remove any existing highlighting classes first
+                        session1NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
+                        session2NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
+
+                        // Apply new highlighting class to the used note
+                        if (usedNote >= generalAverage) {
+                            // Green for above or equal to average
+                            usedNoteCell.classList.add('um5-note-above-average');
+                        } else {
+                            // Red for below average
+                            usedNoteCell.classList.add('um5-note-below-average');
+                        }
+                    }
+
+                    moduleIndex++;
+                }
+            }
+        });
+    }    // Function to remove highlighting from the table
+    function removeHighlighting() {
+        const table = document.querySelector('table.table-bordered tbody');
+        if (!table) return;
+
+        const rows = Array.from(table.querySelectorAll('tr'));
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 8) {
+                const session1NoteCell = cells[2];
+                const session2NoteCell = cells[5];
+
+                // Remove highlighting classes from both note cells
+                session1NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
+                session2NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
+            }
+        });
+    }// Main function to run the calculator
     function runCalculator() {
         if (!isExtensionActive || !isNotesPage()) {
             return;
@@ -242,6 +308,7 @@
         const generalAverage = calculateGeneralAverage(modules);
         const semesterAverages = calculateSemesterAverages(modules);
         displayGeneralAverage(generalAverage, modules, semesterAverages);
+        highlightNotesInTable(modules, generalAverage);
         
         console.log(`UM5 Notes Calculator: Calculated average = ${generalAverage}`);
         console.log('Modules analyzed:', modules);
