@@ -5,7 +5,22 @@
     // Configuration
     const EXTENSION_ID = 'um5-notes-calculator';
     const HIGHLIGHT_COLOR = '#4CAF50';
-    const TEXT_COLOR = '#ffffff';    // Function to check if we're on the notes page
+    const TEXT_COLOR = '#ffffff';
+    
+    // Extension state
+    let isExtensionActive = true;
+    
+    // Load extension state from storage
+    function loadExtensionState() {
+        chrome.storage.sync.get(['extensionActive'], function(result) {
+            isExtensionActive = result.extensionActive !== false; // Default to true
+            if (isExtensionActive && isNotesPage()) {
+                runCalculator();
+            } else {
+                removeExistingDisplay();
+            }
+        });
+    }// Function to check if we're on the notes page
     function isNotesPage() {
         // Check if we're on the UM5 domain and have the right page elements
         const isUM5Domain = window.location.hostname === 'etu.um5.ac.ma';
@@ -132,20 +147,20 @@
         
         const validModules = modules.filter(module => module.isValid);
         const invalidModules = modules.filter(module => !module.isValid);
-        
-        displayDiv.innerHTML = `
+          displayDiv.innerHTML = `
             <div class="calculator-header">
-                <h4>📊 Moyennes Calculées</h4>
-                <span class="extension-badge">Extension UM5</span>
+                <h4><i class="fas fa-chart-line"></i> Moyennes Calculées</h4>
+                <span class="extension-badge"><i class="fas fa-university"></i> Extension UM5</span>
             </div>
             <div class="averages-container">
                 <div class="average-display main-average">
-                    <span class="average-label">Moyenne Générale:</span>
+                    <span class="average-label"><i class="fas fa-trophy"></i> Moyenne Générale:</span>
                     <span class="average-value">${average}/20</span>
-                </div>                <div class="semester-averages">
+                </div>
+                <div class="semester-averages">
                     ${Object.keys(semesterAverages.averages).map(semester => `
                         <div class="average-display semester-average">
-                            <span class="average-label">Moyenne ${semester}:</span>
+                            <span class="average-label"><i class="fas fa-calendar-alt"></i> Moyenne ${semester}:</span>
                             <span class="average-value">${semesterAverages.averages[semester]}/20</span>
                         </div>
                     `).join('')}
@@ -153,36 +168,39 @@
             </div>
             <div class="modules-summary">
                 <div class="summary-item">
-                    <span class="summary-label">Modules Validés:</span>
+                    <span class="summary-label"><i class="fas fa-check-circle"></i> Modules Validés:</span>
                     <span class="summary-value valid">${validModules.length}</span>
                 </div>
                 <div class="summary-item">
-                    <span class="summary-label">Modules Non Validés:</span>
+                    <span class="summary-label"><i class="fas fa-times-circle"></i> Modules Non Validés:</span>
                     <span class="summary-value invalid">${invalidModules.length}</span>
                 </div>
                 <div class="summary-item">
-                    <span class="summary-label">Total Modules:</span>
+                    <span class="summary-label"><i class="fas fa-book"></i> Total Modules:</span>
                     <span class="summary-value">${modules.length}</span>
                 </div>
-            </div>
-            <div class="calculation-details">
-                <button class="toggle-details">Voir les détails</button>                <div class="details-content" style="display: none;">
-                    <h5>Tous les modules inclus dans le calcul:</h5>
+            </div>            <div class="calculation-details">
+                <button class="toggle-details"><i class="fas fa-info-circle"></i> Voir les détails</button>
+                <div class="details-content" style="display: none;">
+                    <h5><i class="fas fa-list-alt"></i> Tous les modules inclus dans le calcul:</h5>
                     <div class="modules-list">
                         ${Object.keys(semesterAverages.semesterGroups).map(semester => `
                             <div class="semester-modules">
-                                <h6>📚 ${semester} (Moyenne: ${semesterAverages.averages[semester]}/20):</h6>
+                                <h6><i class="fas fa-graduation-cap"></i> ${semester} (Moyenne: ${semesterAverages.averages[semester]}/20):</h6>
                                 <ul>
                                     ${semesterAverages.semesterGroups[semester].map(module => 
                                         `<li>
                                             <span class="module-name">${module.name}:</span> 
                                             <span class="module-note ${module.isValid ? 'valid' : 'invalid'}">${module.finalNote}/20</span>
-                                            ${module.isValid ? '✅' : '❌'}
+                                            <i class="fas ${module.isValid ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${module.isValid ? '#4ade80' : '#f87171'}; margin-left: 8px;"></i>
                                         </li>`
                                     ).join('')}
                                 </ul>
                             </div>
                         `).join('')}
+                    </div>
+                    <div class="calculation-note">
+                        <p><i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Tous les modules (validés et non validés) sont inclus dans le calcul de la moyenne générale.</p>
                     </div>
                 </div>
             </div>
@@ -191,14 +209,13 @@
         // Add event listener for toggle details
         const toggleButton = displayDiv.querySelector('.toggle-details');
         const detailsContent = displayDiv.querySelector('.details-content');
-        
-        toggleButton.addEventListener('click', () => {
+          toggleButton.addEventListener('click', () => {
             if (detailsContent.style.display === 'none') {
                 detailsContent.style.display = 'block';
-                toggleButton.textContent = 'Masquer les détails';
+                toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i> Masquer les détails';
             } else {
                 detailsContent.style.display = 'none';
-                toggleButton.textContent = 'Voir les détails';
+                toggleButton.innerHTML = '<i class="fas fa-info-circle"></i> Voir les détails';
             }
         });
 
@@ -209,9 +226,15 @@
         }
     }
 
-    // Main function to run the calculator
+    // Function to remove existing display
+    function removeExistingDisplay() {
+        const existingDisplay = document.querySelector(`#${EXTENSION_ID}-display`);
+        if (existingDisplay) {
+            existingDisplay.remove();
+        }
+    }    // Main function to run the calculator
     function runCalculator() {
-        if (!isNotesPage()) {
+        if (!isExtensionActive || !isNotesPage()) {
             return;
         }
 
@@ -219,22 +242,18 @@
         if (!modules || modules.length === 0) {
             console.log('No modules found');
             return;
-        }        const generalAverage = calculateGeneralAverage(modules);
+        }
+
+        const generalAverage = calculateGeneralAverage(modules);
         const semesterAverages = calculateSemesterAverages(modules);
         displayGeneralAverage(generalAverage, modules, semesterAverages);
         
         console.log(`UM5 Notes Calculator: Calculated average = ${generalAverage}`);
         console.log('Modules analyzed:', modules);
-    }
-
-    // Run the calculator when the page loads
+    }    // Run the calculator when the page loads
     function init() {
-        // Run immediately if page is already loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', runCalculator);
-        } else {
-            runCalculator();
-        }
+        // Load extension state first
+        loadExtensionState();
 
         // Also run when navigating (for SPA-like behavior)
         let lastUrl = location.href;
@@ -242,14 +261,28 @@
             const url = location.href;
             if (url !== lastUrl) {
                 lastUrl = url;
-                setTimeout(runCalculator, 1000); // Delay to ensure page is loaded
+                setTimeout(() => {
+                    if (isExtensionActive) {
+                        runCalculator();
+                    }
+                }, 1000); // Delay to ensure page is loaded
             }
-        }).observe(document, { subtree: true, childList: true });    }
-
-    // Message listener for popup communication
+        }).observe(document, { subtree: true, childList: true });
+    }    // Message listener for popup communication
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "checkPage") {
             sendResponse({isNotesPage: isNotesPage()});
+        } else if (request.action === "toggleExtension") {
+            isExtensionActive = request.isActive;
+            if (isExtensionActive) {
+                runCalculator();
+            } else {
+                removeExistingDisplay();
+            }
+        } else if (request.action === "runCalculator") {
+            if (isExtensionActive) {
+                runCalculator();
+            }
         }
         return true;
     });

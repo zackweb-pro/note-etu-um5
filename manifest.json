@@ -4,7 +4,8 @@
   "version": "1.0",
   "description": "Automatically calculates and displays general notes for UM5 student portal",  "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "https://etu.um5.ac.ma/*",

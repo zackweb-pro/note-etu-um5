@@ -80,16 +80,15 @@
             opacity: 0.95;
             font-weight: 400;
         }
-        
-        .status {
+          .status {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             padding: 16px;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border-radius: 50px;
+            border-radius: 16px;
             margin-bottom: 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             font-weight: 500;
@@ -100,9 +99,89 @@
             background: rgba(255, 255, 255, 0.15);
         }
         
+        .status-info {
+            display: flex;
+            align-items: center;
+        }
+        
         .status-icon {
             margin-right: 8px;
             font-size: 1.1rem;
+        }
+        
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .toggle-switch.active {
+            background: rgba(76, 222, 128, 0.8);
+            border-color: rgba(76, 222, 128, 1);
+            box-shadow: 0 0 15px rgba(76, 222, 128, 0.4);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+        
+        .toggle-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+        }
+        
+        .extension-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .extension-status.inactive {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: rgba(248, 113, 113, 0.3);
+            color: #fecaca;
+        }
+        
+        .extension-status.active {
+            background: rgba(76, 222, 128, 0.15);
+            border-color: rgba(76, 222, 128, 0.3);
+            color: #bbf7d0;
         }
         
         .footer {
@@ -164,10 +243,21 @@
             <h1>📊 UM5 Notes Calculator</h1>
             <p>Calculateur automatique de moyennes</p>
         </div>
+          <div class="status" id="status">
+            <div class="status-info">
+                <span class="status-icon">📍</span>
+                <span id="status-text">Extension active</span>
+            </div>
+            <div class="toggle-container">
+                <span class="toggle-label" id="toggle-label">ON</span>
+                <div class="toggle-switch active" id="toggle-switch">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
         
-        <div class="status" id="status">
-            <span class="status-icon">✅</span>
-            <span>Extension active</span>
+        <div class="extension-status active" id="extension-status">
+            <span>🟢 Extension activée et prête à fonctionner</span>
         </div>
         
         <div class="info-section">
@@ -177,39 +267,20 @@
             <p>• Inclut tous les modules (validés et non validés)</p>
             <p>• Affichage coloré pour identification</p>
         </div>
-        
-        <div class="info-section">
+          <div class="info-section">
             <h3>📋 Instructions</h3>
-            <p>1. Naviguez vers votre page de notes UM5</p>
-            <p>2. L'extension calculera automatiquement vos moyennes</p>
-            <p>3. Les résultats apparaîtront avec un fond coloré</p>
+            <p>1. Activez l'extension avec le bouton ci-dessus</p>
+            <p>2. Naviguez vers votre page de notes UM5</p>
+            <p>3. L'extension calculera automatiquement vos moyennes</p>
+            <p>4. Les résultats apparaîtront avec un fond coloré</p>
+            <p>5. Désactivez l'extension quand vous n'en avez plus besoin</p>
         </div>
-        
-        <div class="footer">
+          <div class="footer">
             <p>Université Mohammed V de Rabat</p>
             <span class="version">Version 1.0</span>
         </div>
-    </div><script>
-        // Check if we're on the UM5 domain and notes page
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            const statusElement = document.getElementById('status');
-            const currentUrl = tabs[0].url;
-            
-            if (currentUrl && currentUrl.includes('etu.um5.ac.ma')) {
-                // We're on UM5 domain, check if it's the notes page
-                chrome.tabs.sendMessage(tabs[0].id, {action: "checkPage"}, function(response) {
-                    if (chrome.runtime.lastError) {
-                        statusElement.innerHTML = '<span class="status-icon">✅</span><span>Sur le domaine UM5</span>';
-                    } else if (response && response.isNotesPage) {
-                        statusElement.innerHTML = '<span class="status-icon">✅</span><span>Page de notes détectée</span>';
-                    } else {
-                        statusElement.innerHTML = '<span class="status-icon">ℹ️</span><span>Naviguez vers vos notes</span>';
-                    }
-                });
-            } else {
-                statusElement.innerHTML = '<span class="status-icon">⚠️</span><span>Allez sur etu.um5.ac.ma</span>';
-            }
-        });
-    </script>
+    </div>
+
+    <script src="popup.js"></script>
 </body>
 </html>
