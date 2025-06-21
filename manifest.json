@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "UM5 Notes Calculator",
   "version": "1.0",
-  "description": "Automatically calculates and displays general notes for UM5 student portal",  "permissions": [
+  "description": "Automatically calculates and displays general notes for UM5 student portal",
+  "permissions": [
     "activeTab",
     "scripting",
     "storage"
@@ -10,7 +11,8 @@
   "host_permissions": [
     "https://etu.um5.ac.ma/*",
     "http://etu.um5.ac.ma/*"
-  ],"content_scripts": [
+  ],
+  "content_scripts": [
     {
       "matches": [
         "https://etu.um5.ac.ma/*",
@@ -23,9 +25,10 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "UM5 Notes Calculator"
-  },  "icons": {
-    "16": "icon.svg",
-    "48": "icon.svg",
-    "128": "icon.svg"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }
