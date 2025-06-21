@@ -3,127 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UM5 Notes Calculator</title>
-    <style>
+    <title>UM5 Notes Calculator</title>    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
         body {
-            width: 300px;
-            padding: 20px;
+            width: 320px;
+            padding: 0;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .container {
+            padding: 24px;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
         }
         
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         .header h1 {
-            margin: 0;
-            font-size: 1.4em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
         }
         
         .header p {
-            margin: 5px 0 0 0;
-            font-size: 0.9em;
+            margin: 0;
+            font-size: 0.85rem;
             opacity: 0.9;
+            font-weight: 400;
         }
         
         .info-section {
-            background: rgba(255,255,255,0.15);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .info-section:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateY(-1px);
         }
         
         .info-section h3 {
-            margin: 0 0 10px 0;
-            font-size: 1.1em;
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
         }
         
         .info-section p {
-            margin: 5px 0;
-            font-size: 0.9em;
-            line-height: 1.4;
+            margin: 6px 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            opacity: 0.95;
+            font-weight: 400;
         }
         
         .status {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 10px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 6px;
-            margin-bottom: 15px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 50px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .status:hover {
+            background: rgba(255, 255, 255, 0.15);
         }
         
         .status-icon {
             margin-right: 8px;
-            font-size: 1.2em;
+            font-size: 1.1rem;
         }
         
         .footer {
             text-align: center;
-            font-size: 0.8em;
+            font-size: 0.75rem;
             opacity: 0.8;
-            border-top: 1px solid rgba(255,255,255,0.3);
-            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            padding-top: 20px;
+            margin-top: 24px;
         }
         
         .version {
-            background: rgba(255,255,255,0.1);
-            padding: 4px 8px;
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            padding: 4px 12px;
+            border-radius: 20px;
             display: inline-block;
-            margin-top: 5px;
+            margin-top: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        /* Smooth animations */
+        .info-section {
+            animation: slideInUp 0.3s ease-out forwards;
+        }
+        
+        .info-section:nth-child(2) { animation-delay: 0.1s; }
+        .info-section:nth-child(3) { animation-delay: 0.2s; }
+        .info-section:nth-child(4) { animation-delay: 0.3s; }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Hover effects */
+        .info-section p {
+            transition: color 0.2s ease;
+        }
+        
+        .info-section:hover p {
+            color: #f0f4ff;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📊 UM5 Notes Calculator</h1>
-        <p>Calculateur automatique de moyennes</p>
-    </div>
-    
-    <div class="status" id="status">
-        <span class="status-icon">✅</span>
-        <span>Extension active</span>
-    </div>
-    
-    <div class="info-section">
-        <h3>🎯 Fonctionnalités</h3>
-        <p>• Calcul automatique de la moyenne générale</p>
-        <p>• Moyennes par semestre</p>
-        <p>• Inclut tous les modules (validés et non validés)</p>
-        <p>• Affichage coloré pour identification</p>
-    </div>
-    
-    <div class="info-section">
-        <h3>📋 Instructions</h3>
-        <p>1. Naviguez vers votre page de notes UM5</p>
-        <p>2. L'extension calculera automatiquement vos moyennes</p>
-        <p>3. Les résultats apparaîtront avec un fond vert</p>
-    </div>
-    
-    <div class="footer">
-        <p>Université Mohammed V de Rabat</p>
-        <span class="version">Version 1.0</span>
-    </div>
-
-    <script>
-        // Check if we're on a notes page
+    <div class="container">
+        <div class="header">
+            <h1>📊 UM5 Notes Calculator</h1>
+            <p>Calculateur automatique de moyennes</p>
+        </div>
+        
+        <div class="status" id="status">
+            <span class="status-icon">✅</span>
+            <span>Extension active</span>
+        </div>
+        
+        <div class="info-section">
+            <h3>🎯 Fonctionnalités</h3>
+            <p>• Calcul automatique de la moyenne générale</p>
+            <p>• Moyennes par semestre</p>
+            <p>• Inclut tous les modules (validés et non validés)</p>
+            <p>• Affichage coloré pour identification</p>
+        </div>
+        
+        <div class="info-section">
+            <h3>📋 Instructions</h3>
+            <p>1. Naviguez vers votre page de notes UM5</p>
+            <p>2. L'extension calculera automatiquement vos moyennes</p>
+            <p>3. Les résultats apparaîtront avec un fond coloré</p>
+        </div>
+        
+        <div class="footer">
+            <p>Université Mohammed V de Rabat</p>
+            <span class="version">Version 1.0</span>
+        </div>
+    </div><script>
+        // Check if we're on the UM5 domain and notes page
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {action: "checkPage"}, function(response) {
-                const statusElement = document.getElementById('status');
-                if (response && response.isNotesPage) {
-                    statusElement.innerHTML = '<span class="status-icon">✅</span><span>Page de notes détectée</span>';
-                } else {
-                    statusElement.innerHTML = '<span class="status-icon">ℹ️</span><span>Naviguez vers vos notes</span>';
-                }
-            });
+            const statusElement = document.getElementById('status');
+            const currentUrl = tabs[0].url;
+            
+            if (currentUrl && currentUrl.includes('etu.um5.ac.ma')) {
+                // We're on UM5 domain, check if it's the notes page
+                chrome.tabs.sendMessage(tabs[0].id, {action: "checkPage"}, function(response) {
+                    if (chrome.runtime.lastError) {
+                        statusElement.innerHTML = '<span class="status-icon">✅</span><span>Sur le domaine UM5</span>';
+                    } else if (response && response.isNotesPage) {
+                        statusElement.innerHTML = '<span class="status-icon">✅</span><span>Page de notes détectée</span>';
+                    } else {
+                        statusElement.innerHTML = '<span class="status-icon">ℹ️</span><span>Naviguez vers vos notes</span>';
+                    }
+                });
+            } else {
+                statusElement.innerHTML = '<span class="status-icon">⚠️</span><span>Allez sur etu.um5.ac.ma</span>';
+            }
         });
     </script>
 </body>

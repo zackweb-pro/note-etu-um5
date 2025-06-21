@@ -38,15 +38,18 @@ L'extension suit cette logique pour déterminer la note finale de chaque module 
 ## 📁 Structure des Fichiers
 
 ```
-chrome-extension/
+note-etu-um5/
 ├── manifest.json          # Configuration de l'extension
 ├── content.js            # Script principal de calcul
 ├── styles.css            # Styles pour l'affichage
 ├── popup.html            # Interface popup
 ├── README.md             # Ce fichier
-├── icon16.png            # Icône 16x16
-├── icon48.png            # Icône 48x48
-└── icon128.png           # Icône 128x128
+├── INSTALLATION.md       # Guide d'installation
+├── icon.svg              # Icône source SVG
+└── icons/                # Dossier des icônes
+    ├── icon16.jpeg       # Icône 16x16
+    ├── icon48.jpeg       # Icône 48x48
+    └── icon128.jpeg      # Icône 128x128
 ```
 
 ## 🔧 Développement

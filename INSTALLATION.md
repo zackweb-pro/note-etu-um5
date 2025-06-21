@@ -16,7 +16,9 @@
    - `styles.css`
    - `popup.html`
    - `README.md`
+   - `INSTALLATION.md`
    - `icon.svg`
+   - `icons/` (dossier contenant icon16.jpeg, icon48.jpeg, icon128.jpeg)
 
 ### Étape 2 : Activer le mode développeur
 

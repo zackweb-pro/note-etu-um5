@@ -5,16 +5,16 @@
     // Configuration
     const EXTENSION_ID = 'um5-notes-calculator';
     const HIGHLIGHT_COLOR = '#4CAF50';
-    const TEXT_COLOR = '#ffffff';
-
-    // Function to check if we're on the notes page
+    const TEXT_COLOR = '#ffffff';    // Function to check if we're on the notes page
     function isNotesPage() {
-        return document.querySelector('table.table-bordered') && 
-               document.querySelector('h6') && 
-               document.querySelector('h6').textContent.includes('Notes et résultats');
-    }
-
-    // Function to parse notes from the table
+        // Check if we're on the UM5 domain and have the right page elements
+        const isUM5Domain = window.location.hostname === 'etu.um5.ac.ma';
+        const hasNotesTable = document.querySelector('table.table-bordered');
+        const hasNotesTitle = document.querySelector('h6') && 
+                             document.querySelector('h6').textContent.includes('Notes et résultats');
+        
+        return isUM5Domain && hasNotesTable && hasNotesTitle;
+    }    // Function to parse notes from the table
     function parseNotesData() {
         const table = document.querySelector('table.table-bordered tbody');
         if (!table) return null;
@@ -22,6 +22,7 @@
         const rows = Array.from(table.querySelectorAll('tr'));
         const modules = [];
         let currentModule = null;
+        let currentSemester = null;
 
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
@@ -33,18 +34,27 @@
                 const session2Note = cells[5].textContent.trim();
                 const session2Result = cells[7].textContent.trim();
 
+                // Check if this is a semester row (SE01, SE02, etc.)
+                if (moduleType.startsWith('SE0')) {
+                    currentSemester = moduleType;
+                    return; // Skip to next row
+                }
+
                 // Check if this is a MO (Module) row
                 if (moduleType === 'MO') {
                     currentModule = {
                         name: moduleName,
                         type: moduleType,
+                        semester: currentSemester, // Add semester information
                         session1Note: parseFloat(session1Note) || 0,
                         session1Result: session1Result,
                         session2Note: parseFloat(session2Note) || 0,
                         session2Result: session2Result,
                         finalNote: 0,
                         isValid: false
-                    };                    // Determine final note and validity
+                    };
+
+                    // Determine final note and validity
                     if (session1Result === 'Validé') {
                         currentModule.finalNote = currentModule.session1Note;
                         currentModule.isValid = true;
@@ -72,30 +82,42 @@
         });
 
         return modules;
-    }    // Function to calculate general average (including all modules, even non-validated ones)
+    }// Function to calculate general average (including all modules, even non-validated ones)
     function calculateGeneralAverage(modules) {
         if (modules.length === 0) return 0;
 
         const sum = modules.reduce((total, module) => total + module.finalNote, 0);
         return (sum / modules.length).toFixed(2);
-    }
-
-    // Function to calculate semester averages
+    }    // Function to calculate semester averages
     function calculateSemesterAverages(modules) {
-        const semester1Sum = modules.reduce((total, module) => total + module.session1Note, 0);
-        const semester2Sum = modules.reduce((total, module) => {
-            // Only include session 2 notes if they exist (not 0)
-            return total + (module.session2Note || module.session1Note);
-        }, 0);
+        // Group modules by semester
+        const semesterGroups = {};
         
-        const semester1Average = modules.length > 0 ? (semester1Sum / modules.length).toFixed(2) : 0;
-        const semester2Average = modules.length > 0 ? (semester2Sum / modules.length).toFixed(2) : 0;
+        modules.forEach(module => {
+            if (module.semester) {
+                if (!semesterGroups[module.semester]) {
+                    semesterGroups[module.semester] = [];
+                }
+                semesterGroups[module.semester].push(module);
+            }
+        });
+
+        const semesterAverages = {};
         
+        // Calculate average for each semester
+        Object.keys(semesterGroups).forEach(semester => {
+            const semesterModules = semesterGroups[semester];
+            if (semesterModules.length > 0) {
+                const sum = semesterModules.reduce((total, module) => total + module.finalNote, 0);
+                semesterAverages[semester] = (sum / semesterModules.length).toFixed(2);
+            }
+        });
+
         return {
-            semester1: semester1Average,
-            semester2: semester2Average
+            semesterGroups: semesterGroups,
+            averages: semesterAverages
         };
-    }    // Function to create and insert the general average display
+    }// Function to create and insert the general average display
     function displayGeneralAverage(average, modules, semesterAverages) {
         // Remove existing display if present
         const existingDisplay = document.querySelector(`#${EXTENSION_ID}-display`);
@@ -120,16 +142,13 @@
                 <div class="average-display main-average">
                     <span class="average-label">Moyenne Générale:</span>
                     <span class="average-value">${average}/20</span>
-                </div>
-                <div class="semester-averages">
-                    <div class="average-display semester-average">
-                        <span class="average-label">Moyenne Semestre 1:</span>
-                        <span class="average-value">${semesterAverages.semester1}/20</span>
-                    </div>
-                    <div class="average-display semester-average">
-                        <span class="average-label">Moyenne Semestre 2:</span>
-                        <span class="average-value">${semesterAverages.semester2}/20</span>
-                    </div>
+                </div>                <div class="semester-averages">
+                    ${Object.keys(semesterAverages.averages).map(semester => `
+                        <div class="average-display semester-average">
+                            <span class="average-label">Moyenne ${semester}:</span>
+                            <span class="average-value">${semesterAverages.averages[semester]}/20</span>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
             <div class="modules-summary">
@@ -147,31 +166,23 @@
                 </div>
             </div>
             <div class="calculation-details">
-                <button class="toggle-details">Voir les détails</button>
-                <div class="details-content" style="display: none;">
+                <button class="toggle-details">Voir les détails</button>                <div class="details-content" style="display: none;">
                     <h5>Tous les modules inclus dans le calcul:</h5>
                     <div class="modules-list">
-                        <div class="valid-modules">
-                            <h6>✅ Modules Validés:</h6>
-                            <ul>
-                                ${validModules.map(module => 
-                                    `<li><span class="module-name">${module.name}:</span> <span class="module-note">${module.finalNote}/20</span></li>`
-                                ).join('')}
-                            </ul>
-                        </div>
-                        ${invalidModules.length > 0 ? `
-                            <div class="invalid-modules">
-                                <h6>❌ Modules Non Validés (inclus dans le calcul):</h6>
+                        ${Object.keys(semesterAverages.semesterGroups).map(semester => `
+                            <div class="semester-modules">
+                                <h6>📚 ${semester} (Moyenne: ${semesterAverages.averages[semester]}/20):</h6>
                                 <ul>
-                                    ${invalidModules.map(module => 
-                                        `<li><span class="module-name">${module.name}:</span> <span class="module-note">${module.finalNote}/20</span></li>`
+                                    ${semesterAverages.semesterGroups[semester].map(module => 
+                                        `<li>
+                                            <span class="module-name">${module.name}:</span> 
+                                            <span class="module-note ${module.isValid ? 'valid' : 'invalid'}">${module.finalNote}/20</span>
+                                            ${module.isValid ? '✅' : '❌'}
+                                        </li>`
                                     ).join('')}
                                 </ul>
                             </div>
-                        ` : ''}
-                    </div>
-                    <div class="calculation-note">
-                        <p><strong>Note:</strong> Tous les modules (validés et non validés) sont inclus dans le calcul de la moyenne générale.</p>
+                        `).join('')}
                     </div>
                 </div>
             </div>
@@ -233,8 +244,15 @@
                 lastUrl = url;
                 setTimeout(runCalculator, 1000); // Delay to ensure page is loaded
             }
-        }).observe(document, { subtree: true, childList: true });
-    }
+        }).observe(document, { subtree: true, childList: true });    }
+
+    // Message listener for popup communication
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === "checkPage") {
+            sendResponse({isNotesPage: isNotesPage()});
+        }
+        return true;
+    });
 
     // Initialize the extension
     init();
