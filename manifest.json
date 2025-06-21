@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "UM5 Notes Calculator",
+  "version": "1.0",
+  "description": "Automatically calculates and displays general notes for UM5 student portal",
+  "permissions": [
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "UM5 Notes Calculator"
+  },
+  "icons": {
+    "16": "icon16.jpeg",
+    "48": "icon48.jpeg",
+    "128": "icon128.jpeg"
+  }
+}

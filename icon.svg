@@ -1,0 +1,31 @@
+<!-- Simple SVG icon for the extension - save as icon16.png, icon48.png, icon128.png after converting -->
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#4CAF50" stroke="#2E7D32" stroke-width="4"/>
+  
+  <!-- Calculator icon -->
+  <rect x="32" y="20" width="64" height="80" rx="8" fill="white" opacity="0.9"/>
+  
+  <!-- Screen -->
+  <rect x="38" y="28" width="52" height="16" rx="2" fill="#2E7D32"/>
+  
+  <!-- Numbers display -->
+  <text x="64" y="38" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="8" font-weight="bold">20/20</text>
+  
+  <!-- Buttons -->
+  <circle cx="45" cy="55" r="5" fill="#4CAF50"/>
+  <circle cx="64" cy="55" r="5" fill="#4CAF50"/>
+  <circle cx="83" cy="55" r="5" fill="#4CAF50"/>
+  
+  <circle cx="45" cy="70" r="5" fill="#4CAF50"/>
+  <circle cx="64" cy="70" r="5" fill="#4CAF50"/>
+  <circle cx="83" cy="70" r="5" fill="#4CAF50"/>
+  
+  <circle cx="45" cy="85" r="5" fill="#4CAF50"/>
+  <circle cx="64" cy="85" r="5" fill="#4CAF50"/>
+  <circle cx="83" cy="85" r="5" fill="#FF9800"/>
+  
+  <!-- University symbol -->
+  <path d="M 20 105 L 64 95 L 108 105 L 108 110 L 20 110 Z" fill="#2E7D32"/>
+  <text x="64" y="118" text-anchor="middle" fill="#2E7D32" font-family="Arial, sans-serif" font-size="10" font-weight="bold">UM5</text>
+</svg>
