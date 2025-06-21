@@ -18,6 +18,6 @@ Seules les préférences d'activation/désactivation sont stockées localement d
 - https://etu.um5.ac.ma/* : Accès limité au portail UM5
 
 ## Contact
-Pour toute question : [votre-email@exemple.com]
+Pour toute question : webzack0@gmail.com
 
-Dernière mise à jour : [Date]
+Dernière mise à jour : 21/06/2025
