@@ -196,9 +196,7 @@
                             </div>
                         `).join('')}
                     </div>
-                    <div class="calculation-note">
-                        <p><i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Tous les modules (validés et non validés) sont inclus dans le calcul de la moyenne générale.</p>
-                    </div>
+        
                 </div>
             </div>
         `;
