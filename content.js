@@ -144,10 +144,9 @@
         const displayDiv = document.createElement('div');
         displayDiv.id = `${EXTENSION_ID}-display`;
         displayDiv.className = 'um5-notes-calculator';
-        
-        const validModules = modules.filter(module => module.isValid);
+          const validModules = modules.filter(module => module.isValid);
         const invalidModules = modules.filter(module => !module.isValid);
-          displayDiv.innerHTML = `
+        const successRate = ((validModules.length / modules.length) * 100).toFixed(1);        displayDiv.innerHTML = `
             <div class="calculator-header">
                 <h4><i class="fas fa-chart-line"></i> Moyennes Calculées</h4>
                 <span class="extension-badge"><i class="fas fa-university"></i> Extension UM5</span>
@@ -156,6 +155,15 @@
                 <div class="average-display main-average">
                     <span class="average-label"><i class="fas fa-trophy"></i> Moyenne Générale:</span>
                     <span class="average-value">${average}/20</span>
+                </div>
+                <div class="success-rate">
+                    <div>
+                        <div class="success-rate-label"><i class="fas fa-percentage"></i> Taux de Réussite</div>
+                        <div class="success-rate-value">${successRate}%</div>
+                    </div>
+                    <div class="success-rate-bar">
+                        <div class="success-rate-fill" style="width: ${successRate}%"></div>
+                    </div>
                 </div>
                 <div class="semester-averages">
                     ${Object.keys(semesterAverages.averages).map(semester => `
@@ -192,7 +200,7 @@
                                         `<li>
                                             <span class="module-name">${module.name}:</span> 
                                             <span class="module-note ${module.isValid ? 'valid' : 'invalid'}">${module.finalNote}/20</span>
-                                            <i class="fas ${module.isValid ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${module.isValid ? '#4ade80' : '#f87171'}; margin-left: 8px;"></i>
+                                            <i class="fas ${module.isValid ? 'fa-check-circle' : 'fa-times-circle'}" style="color: ${module.isValid ? '#10b981' : '#ef4444'}; margin-left: 8px;"></i>
                                         </li>`
                                     ).join('')}
                                 </ul>
