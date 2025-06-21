@@ -238,36 +238,61 @@
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
             if (cells.length >= 8) {
-                const moduleType = cells[1].textContent.trim();
-
-                // Only highlight module (MO) rows
+                const moduleType = cells[1].textContent.trim();                // Only highlight module (MO) rows
                 if (moduleType === 'MO' && moduleIndex < modules.length) {
                     const module = modules[moduleIndex];
                     const session1NoteCell = cells[2];
                     const session2NoteCell = cells[5];
+                    
+                    // Get the actual note values from the table
+                    const session1Note = parseFloat(cells[2].textContent.trim()) || 0;
+                    const session2Note = parseFloat(cells[5].textContent.trim()) || 0;
+                    const session1Result = cells[4].textContent.trim();
+                    const session2Result = cells[7].textContent.trim();
 
-                    // Determine which note was used as final note
+                    // Determine which note was used as final note (same logic as in parseNotesData)
                     let usedNoteCell = null;
-                    let usedNote = module.finalNote;
+                    let usedNote = 0;
 
-                    if (module.session1Result === 'Validé') {
+                    if (session1Result === 'Validé') {
                         usedNoteCell = session1NoteCell;
-                    } else if (module.session1Result === 'Rattrapage' || module.session1Result === 'Ajourné') {
+                        usedNote = session1Note;
+                    } else if (session1Result === 'Rattrapage' && session2Result === 'Validé') {
                         usedNoteCell = session2NoteCell;
+                        usedNote = session2Note;
+                    } else if (session1Result === 'Rattrapage' && session2Result === 'Non Validé') {
+                        usedNoteCell = session2NoteCell;
+                        usedNote = session2Note;
+                    } else if (session1Result === 'Ajourné' && session2Result === 'Admis') {
+                        usedNoteCell = session2NoteCell;
+                        usedNote = session2Note;
+                    } else if (session1Result === 'Ajourné' && session2Result) {
+                        usedNoteCell = session2NoteCell;
+                        usedNote = session2Note;
                     } else {
+                        // Default to session 1 note
                         usedNoteCell = session1NoteCell;
-                    }                    // Apply highlighting based on comparison with general average
+                        usedNote = session1Note;
+                    }
+
+                    // If the selected note is empty/0 but we expected session 2, fall back to session 1
+                    if (usedNote === 0 && usedNoteCell === session2NoteCell && session1Note > 0) {
+                        usedNoteCell = session1NoteCell;
+                        usedNote = session1Note;
+                    }
+
+                    // Apply highlighting based on 12/20 threshold (passing grade)
                     if (usedNoteCell && usedNote > 0) {
                         // Remove any existing highlighting classes first
                         session1NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
                         session2NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
 
                         // Apply new highlighting class to the used note
-                        if (usedNote >= generalAverage) {
-                            // Green for above or equal to average
+                        if (usedNote >= 12) {
+                            // Green for 12/20 or above (passing grade)
                             usedNoteCell.classList.add('um5-note-above-average');
                         } else {
-                            // Red for below average
+                            // Red for below 12/20 (failing grade)
                             usedNoteCell.classList.add('um5-note-below-average');
                         }
                     }
