@@ -148,17 +148,16 @@
             <div class="calculator-header">
                 <h4><i class="fas fa-chart-line"></i> Moyennes Calculées</h4>
                 <span class="extension-badge"><i class="fas fa-university"></i> Extension UM5</span>
-            </div>
-            <div class="averages-container">
+            </div>            <div class="averages-container">
                 <div class="average-display main-average">
                     <span class="average-label"><i class="fas fa-trophy"></i> Moyenne Générale:</span>
-                    <span class="average-value">${average}/20</span>
+                    <span class="average-value ${getAverageColorClass(average)}">${average}/20</span>
                 </div>
                 <div class="semester-averages">
                     ${Object.keys(semesterAverages.averages).map(semester => `
                         <div class="average-display semester-average">
                             <span class="average-label"><i class="fas fa-calendar-alt"></i> Moyenne ${semester}:</span>
-                            <span class="average-value">${semesterAverages.averages[semester]}/20</span>
+                            <span class="average-value ${getAverageColorClass(semesterAverages.averages[semester])}">${semesterAverages.averages[semester]}/20</span>
                         </div>
                     `).join('')}
                 </div>
@@ -177,7 +176,7 @@
                     <span class="summary-value">${modules.length}</span>
                 </div>
             </div>            <div class="calculation-details">
-                <button class="toggle-details"><i class="fas fa-info-circle"></i> Voir les détails</button>
+                <!-- <button class="toggle-details"><i class="fas fa-info-circle"></i> Voir les détails</button> -->
                 <div class="details-content" style="display: none;">
                     <h5><i class="fas fa-list-alt"></i> Tous les modules inclus dans le calcul:</h5>
                     <div class="modules-list">
@@ -202,17 +201,17 @@
         `;
 
         // Add event listener for toggle details
-        const toggleButton = displayDiv.querySelector('.toggle-details');
-        const detailsContent = displayDiv.querySelector('.details-content');
-          toggleButton.addEventListener('click', () => {
-            if (detailsContent.style.display === 'none') {
-                detailsContent.style.display = 'block';
-                toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i> Masquer les détails';
-            } else {
-                detailsContent.style.display = 'none';
-                toggleButton.innerHTML = '<i class="fas fa-info-circle"></i> Voir les détails';
-            }
-        });
+        // const toggleButton = displayDiv.querySelector('.toggle-details');
+        // const detailsContent = displayDiv.querySelector('.details-content');
+        //   toggleButton.addEventListener('click', () => {
+        //     if (detailsContent.style.display === 'none') {
+        //         detailsContent.style.display = 'block';
+        //         toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i> Masquer les détails';
+        //     } else {
+        //         detailsContent.style.display = 'none';
+        //         toggleButton.innerHTML = '<i class="fas fa-info-circle"></i> Voir les détails';
+        //     }
+        // });
 
         // Insert the display after the table
         const table = document.querySelector('table.table-bordered');
@@ -318,6 +317,10 @@
                 session2NoteCell.classList.remove('um5-note-above-average', 'um5-note-below-average');
             }
         });
+    }// Function to get color class based on average value
+    function getAverageColorClass(averageValue) {
+        const numericValue = parseFloat(averageValue);
+        return numericValue >= 12.0 ? 'average-passing' : 'average-failing';
     }// Main function to run the calculator
     function runCalculator() {
         if (!isExtensionActive || !isNotesPage()) {
