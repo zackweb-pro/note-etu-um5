@@ -17,8 +17,8 @@
         "https://etu.um5.ac.ma/*",
         "http://etu.um5.ac.ma/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "js": ["module-validation.js", "content.js"],
+      "css": ["styles.css", "validation-styles.css"]
     }
   ],
   "action": {

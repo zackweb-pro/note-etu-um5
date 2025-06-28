@@ -66,7 +66,8 @@
                         session2Note: parseFloat(session2Note) || 0,
                         session2Result: session2Result,
                         finalNote: 0,
-                        isValid: false
+                        isValid: false,
+                        elements: [] // Add array to store elements
                     };
 
                     // Determine final note and validity
@@ -92,6 +93,20 @@
                     }
 
                     modules.push(currentModule);
+                }
+                // Handle Element (EM) rows
+                else if (moduleType === 'EM' && currentModule) {
+                    const element = {
+                        name: moduleName,
+                        type: moduleType,
+                        session1Note: parseFloat(session1Note) || 0,
+                        session1Result: session1Result,
+                        session2Note: parseFloat(session2Note) || 0,
+                        session2Result: session2Result,
+                        // We'll calculate the weight and points needed later
+                    };
+                    
+                    currentModule.elements.push(element);
                 }
             }
         });
@@ -337,6 +352,9 @@
         const semesterAverages = calculateSemesterAverages(modules);
         displayGeneralAverage(generalAverage, modules, semesterAverages);
         highlightNotesInTable(modules, generalAverage);
+        
+        // Apply validation indicators for non-validated modules
+        applyValidationIndicators(modules);
         
         console.log(`UM5 Notes Calculator: Calculated average = ${generalAverage}`);
         console.log('Modules analyzed:', modules);

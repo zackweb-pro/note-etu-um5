@@ -9,6 +9,8 @@ Cette extension Chrome calcule automatiquement la moyenne générale et les moye
 - **Logique de validation** : Prend en compte les statuts "Validé", "Rattrapage", "Non Validé", "Ajourné", "Admis"
 - **Affichage coloré** : Interface verte distinctive pour identifier les résultats de l'extension
 - **Détails complets** : Liste de tous les modules avec leurs notes finales
+- **Optimisation pour validation** : Calcul des points nécessaires pour valider un module non validé
+- **Indicateurs d'optimisation** : Affichage des points à ajouter à chaque élément pour validation
 
 ## 📋 Logic de Calcul
 
@@ -40,16 +42,18 @@ L'extension suit cette logique pour déterminer la note finale de chaque module 
 ```
 note-etu-um5/
 ├── manifest.json          # Configuration de l'extension
-├── content.js            # Script principal de calcul
-├── styles.css            # Styles pour l'affichage
-├── popup.html            # Interface popup
-├── README.md             # Ce fichier
-├── INSTALLATION.md       # Guide d'installation
-├── icon.svg              # Icône source SVG
-└── icons/                # Dossier des icônes
-    ├── icon16.jpeg       # Icône 16x16
-    ├── icon48.jpeg       # Icône 48x48
-    └── icon128.jpeg      # Icône 128x128
+├── content.js             # Script principal de calcul
+├── module-validation.js   # Fonctions d'optimisation pour validation
+├── styles.css             # Styles pour l'affichage principal
+├── validation-styles.css  # Styles pour les indicateurs de validation
+├── popup.html             # Interface popup
+├── README.md              # Ce fichier
+├── INSTALLATION.md        # Guide d'installation
+├── icon.svg               # Icône source SVG
+└── icons/                 # Dossier des icônes
+    ├── icon16.jpeg        # Icône 16x16
+    ├── icon48.jpeg        # Icône 48x48
+    └── icon128.jpeg       # Icône 128x128
 ```
 
 ## 🔧 Développement
