@@ -1,7 +1,22 @@
 // Module Validation Helper Functions for UM5 Notes Calculator
 // This file contains additional functions to calculate points needed to validate modules
 
-// Function to calculate element weights within a module
+// Func    // Strategy 3: Minimize total points added (now our primary strategy)
+        const strategy3 = simulateMinTotalPoints();
+        strategies.push(strategy3);
+        
+        // Strategy 4: Balanced distribution across all elements
+        const strategy4 = simulateBalancedDistribution();
+        strategies.push(strategy4);
+        
+        // Strategy 1: Prioritize lowest grades first, especially below 5
+        const strategy1 = simulateLowScoreFirst();
+        strategies.push(strategy1);
+        
+        // Strategy 2: Prioritize highest-weighted elements first
+        const strategy2 = simulateHighWeightFirst();
+        strategies.push(strategy2);
+// culate element weights within a module
 function calculateElementWeights(module) {
     if (!module.elements || module.elements.length === 0) {
         return;
@@ -166,6 +181,10 @@ function calculatePointsNeeded(module) {
         const strategy3 = simulateMinTotalPoints();
         strategies.push(strategy3);
         
+        // Strategy 4: Balanced distribution across all elements (avoids focusing only on high-weighted elements)
+        const strategy4 = simulateBalancedDistribution();
+        strategies.push(strategy4);
+        
         // Strategy 1: Prioritize lowest grades first, especially below 5
         const strategy1 = simulateLowScoreFirst();
         strategies.push(strategy1);
@@ -178,7 +197,124 @@ function calculatePointsNeeded(module) {
         return findBestStrategy(strategies);
     }
     
-    // Strategy 1: Focus on low scores first (especially below 5)
+    // Strategy 4: Distribute points in a balanced way across all elements
+    function simulateBalancedDistribution() {
+        const result = {
+            elementPointsToAdd: {},
+            totalPointsAdded: 0
+        };
+        
+        // Filter eligible elements (those with scores < 12)
+        const eligibleElements = elements.filter(e => e.calculatedNote < 12);
+        
+        if (eligibleElements.length === 0) {
+            return result;
+        }
+        
+        // First, ensure all elements have at least 5 points (mandatory requirement)
+        eligibleElements.forEach(element => {
+            if (element.calculatedNote < 5) {
+                const pointsTo5 = 5 - element.calculatedNote;
+                result.elementPointsToAdd[element.name] = pointsTo5;
+                result.totalPointsAdded += pointsTo5;
+            }
+        });
+        
+        // Calculate how many points we've already added for minimum grades of 5
+        let moduleImprovementSoFar = 0;
+        eligibleElements.forEach(element => {
+            const pointsAdded = result.elementPointsToAdd[element.name] || 0;
+            moduleImprovementSoFar += pointsAdded * element.normalizedWeight;
+        });
+        
+        // Calculate how many more points we need to reach 12
+        let pointsStillNeeded = Math.max(0, pointsNeeded - moduleImprovementSoFar);
+        
+        if (pointsStillNeeded <= 0.01) {
+            return result;
+        }
+        
+        // Sort elements by score (lowest first for prioritization)
+        const remainingElements = eligibleElements.filter(
+            element => !result.elementPointsToAdd[element.name] || 
+                      (element.calculatedNote + result.elementPointsToAdd[element.name]) < 10
+        ).sort((a, b) => a.calculatedNote - b.calculatedNote);
+        
+        // Calculate a balanced distribution factor to prevent focusing only on highest-weight elements
+        // We'll distribute points proportionally to all elements, with adjustments for current grade
+        const totalRemainingWeight = remainingElements.reduce((sum, el) => sum + el.normalizedWeight, 0);
+        
+        if (totalRemainingWeight > 0) {
+            // Distribute initial points proportionally among all elements based on weights
+            for (const element of remainingElements) {
+                // Determine how many proportional points this element should get
+                const elementShare = (element.normalizedWeight / totalRemainingWeight) * pointsStillNeeded;
+                
+                // Apply rule: Never add more than 5 points to elements with score > 10
+                const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
+                
+                const currentPoints = result.elementPointsToAdd[element.name] || 0;
+                const additionalPoints = Math.min(elementShare, maxAllowedPoints - currentPoints);
+                
+                if (additionalPoints > 0) {
+                    result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
+                    result.totalPointsAdded += additionalPoints;
+                }
+            }
+            
+            // Calculate if we've reached our target
+            let currentModuleImprovement = 0;
+            eligibleElements.forEach(element => {
+                const pointsAdded = result.elementPointsToAdd[element.name] || 0;
+                currentModuleImprovement += pointsAdded * element.normalizedWeight;
+            });
+            
+            // If we still haven't reached the target, distribute remaining points
+            // using inverse weight prioritization (to balance the distribution)
+            if (currentModuleImprovement < pointsNeeded - 0.01) {
+                const remainingNeeded = pointsNeeded - currentModuleImprovement;
+                
+                // Sort by inverse weight-to-current-points ratio to balance distribution
+                const balancingElements = eligibleElements
+                    .filter(e => {
+                        const current = result.elementPointsToAdd[e.name] || 0;
+                        return (e.calculatedNote + current) < 12 && (current < (e.calculatedNote > 10 ? 5 : 20 - e.calculatedNote));
+                    })
+                    .sort((a, b) => {
+                        const aPoints = result.elementPointsToAdd[a.name] || 0;
+                        const bPoints = result.elementPointsToAdd[b.name] || 0;
+                        // This sorts by lowest (points/weight) first, balancing the distribution
+                        return (aPoints / a.normalizedWeight) - (bPoints / b.normalizedWeight);
+                    });
+                
+                for (const element of balancingElements) {
+                    const currentPoints = result.elementPointsToAdd[element.name] || 0;
+                    const maxAdditional = element.calculatedNote > 10 ? 
+                        Math.min(5 - currentPoints, 20 - element.calculatedNote - currentPoints) : 
+                        20 - element.calculatedNote - currentPoints;
+                    
+                    if (maxAdditional <= 0) continue;
+                    
+                    const additionalPoints = Math.min(
+                        remainingNeeded / element.normalizedWeight,
+                        maxAdditional
+                    );
+                    
+                    if (additionalPoints > 0) {
+                        result.elementPointsToAdd[element.name] = currentPoints + additionalPoints;
+                        result.totalPointsAdded += additionalPoints;
+                        currentModuleImprovement += additionalPoints * element.normalizedWeight;
+                        
+                        if (currentModuleImprovement >= pointsNeeded - 0.01) break;
+                    }
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    // Strategy 1: Focus on low scores first (below 10, but ensuring all are at least 5)
     function simulateLowScoreFirst() {
         const result = {
             elementPointsToAdd: {},
@@ -187,9 +323,13 @@ function calculatePointsNeeded(module) {
         
         // Sort elements by score (lowest first), then by weight (highest first)
         const sortedElements = [...elements].sort((a, b) => {
-            // First prioritize elements below 5
+            // First prioritize elements below 5 (mandatory minimum)
             if (a.calculatedNote < 5 && b.calculatedNote >= 5) return -1;
             if (b.calculatedNote < 5 && a.calculatedNote >= 5) return 1;
+            
+            // Then prioritize elements below 10 (low scores)
+            if (a.calculatedNote < 10 && b.calculatedNote >= 10) return -1;
+            if (b.calculatedNote < 10 && a.calculatedNote >= 10) return 1;
             
             // Then sort by score
             if (a.calculatedNote !== b.calculatedNote)
@@ -202,7 +342,7 @@ function calculatePointsNeeded(module) {
         // Calculate how many points we need to add to the module
         let pointsStillNeeded = pointsNeeded;
         
-        // First, ensure all elements have at least 5 points
+        // First, ensure all elements have at least 5 points (mandatory requirement)
         for (const element of sortedElements) {
             // Skip elements with score >= 12, as they don't need improvement
             if (element.calculatedNote >= 12) continue;
@@ -223,9 +363,13 @@ function calculatePointsNeeded(module) {
                 
                 // Calculate optimal points for this element
                 const maxPointsPossible = 20 - element.calculatedNote;
+                
+                // Apply rule: Never add more than 5 points to elements with score > 10
+                const maxAllowedPoints = element.calculatedNote > 10 ? 5 : maxPointsPossible;
+                
                 const pointsForElement = Math.min(
                     pointsStillNeeded / element.normalizedWeight,
-                    maxPointsPossible
+                    maxAllowedPoints
                 );
                 
                 if (pointsForElement > 0) {
@@ -241,42 +385,50 @@ function calculatePointsNeeded(module) {
         return result;
     }
     
-    // Strategy 2: Prioritize highest-weighted elements first
+    // Strategy 2: Prioritize highest-weighted elements first, but ensure minimum 5 points
     function simulateHighWeightFirst() {
         const result = {
             elementPointsToAdd: {},
             totalPointsAdded: 0
         };
         
-        // Sort elements by weight (highest first)
-        const sortedElements = [...elements].sort((a, b) => 
-            b.normalizedWeight - a.normalizedWeight
-        );
+        // First we need to ensure minimum grades are met
+        // Process elements below 5 first, regardless of weight
+        const elementsBelow5 = [...elements]
+            .filter(e => e.calculatedNote < 5 && e.calculatedNote < 12);
         
-        // Calculate how many points we need to add to the module
         let pointsStillNeeded = pointsNeeded;
         
-        // Distribute points based on weight
-        for (const element of sortedElements) {
-            // Skip elements with score >= 12, as they don't need improvement
-            if (element.calculatedNote >= 12) continue;
-            
+        // First ensure all elements have at least 5 points (mandatory requirement)
+        for (const element of elementsBelow5) {
+            const pointsTo5 = 5 - element.calculatedNote;
+            result.elementPointsToAdd[element.name] = pointsTo5;
+            result.totalPointsAdded += pointsTo5;
+            pointsStillNeeded -= pointsTo5 * element.normalizedWeight;
+        }
+        
+        // Then sort remaining elements by weight (highest first)
+        const remainingElements = [...elements]
+            .filter(e => !result.elementPointsToAdd[e.name] && e.calculatedNote < 12)
+            .sort((a, b) => b.normalizedWeight - a.normalizedWeight);
+        
+        // Distribute remaining points based on weight
+        for (const element of remainingElements) {
             // Calculate how many points to add (maximal impact)
             const maxPointsPossible = 20 - element.calculatedNote;
+            
+            // Apply rule: Never add more than 5 points to elements with score > 10
+            const maxAllowedPoints = element.calculatedNote > 10 ? 5 : maxPointsPossible;
+            
             const pointsForElement = Math.min(
                 pointsStillNeeded / element.normalizedWeight,
-                maxPointsPossible
+                maxAllowedPoints
             );
             
-            // Ensure we're adding at least enough to get to 5 if below
-            const minimumPoints = element.calculatedNote < 5 ? 
-                Math.max(pointsForElement, 5 - element.calculatedNote) : 
-                pointsForElement;
-            
-            if (minimumPoints > 0) {
-                result.elementPointsToAdd[element.name] = minimumPoints;
-                result.totalPointsAdded += minimumPoints;
-                pointsStillNeeded -= minimumPoints * element.normalizedWeight;
+            if (pointsForElement > 0) {
+                result.elementPointsToAdd[element.name] = pointsForElement;
+                result.totalPointsAdded += pointsForElement;
+                pointsStillNeeded -= pointsForElement * element.normalizedWeight;
                 
                 if (pointsStillNeeded <= 0) break;
             }
@@ -356,15 +508,24 @@ function calculatePointsNeeded(module) {
         eligibleElements.forEach(element => {
             // Skip elements that already have improvements to 5
             const currentPoints = result.elementPointsToAdd[element.name] || 0;
-            const maxAdditional = 20 - (element.calculatedNote + currentPoints);
+            
+            // Apply rule: Never add more than 5 points to elements with score > 10
+            const maxAdditional = element.calculatedNote > 10 ? 
+                Math.min(5, 20 - (element.calculatedNote + currentPoints)) : 
+                20 - (element.calculatedNote + currentPoints);
             
             if (maxAdditional <= 0) return;
             
             // Create array of possible point increments
             const increments = [];
-            const stepSize = maxAdditional / maxIncrements;
             
-            for (let i = 0; i <= maxIncrements; i++) {
+            // For elements below 10, provide more granular options
+            const isLowScore = (element.calculatedNote + currentPoints) < 10;
+            const stepSize = isLowScore ? 
+                maxAdditional / (maxIncrements + 1) : // More granular for low scores
+                maxAdditional / maxIncrements;
+                
+            for (let i = 0; i <= (isLowScore ? maxIncrements + 1 : maxIncrements); i++) {
                 const increment = Math.min(i * stepSize, maxAdditional);
                 increments.push(increment);
             }
@@ -478,39 +639,108 @@ function calculatePointsNeeded(module) {
             return strategies[0]; 
         }
         
-        // Find strategy with minimum total points added
-        const minPointsStrategy = validStrategies.reduce((best, current) => 
-            current.totalPointsAdded < best.totalPointsAdded ? current : best, validStrategies[0]);
+        // Group strategies by total points (within a small margin of error)
+        const strategyGroups = {};
+        let minTotalPoints = Infinity;
         
-        // If multiple strategies use the same number of points, prefer the one that
-        // distributes points across more elements (more balanced approach)
-        const equalPointStrategies = validStrategies.filter(
-            s => Math.abs(s.totalPointsAdded - minPointsStrategy.totalPointsAdded) < 0.01
-        );
+        validStrategies.forEach(strategy => {
+            // Round to nearest 0.5 points to group similar strategies
+            const roundedTotal = Math.round(strategy.totalPointsAdded * 2) / 2;
+            if (!strategyGroups[roundedTotal]) {
+                strategyGroups[roundedTotal] = [];
+            }
+            strategyGroups[roundedTotal].push(strategy);
+            minTotalPoints = Math.min(minTotalPoints, roundedTotal);
+        });
         
-        if (equalPointStrategies.length > 1) {
-            return equalPointStrategies.reduce((best, current) => {
-                const currentCount = Object.keys(current.elementPointsToAdd).length;
-                const bestCount = Object.keys(best.elementPointsToAdd).length;
-                
-                // If one strategy uses more elements, prefer it
-                if (currentCount !== bestCount) {
-                    return currentCount > bestCount ? current : best;
-                }
-                
-                // If they use the same number of elements, prefer the one with more balanced distribution
-                // (lower standard deviation of point additions)
-                const currentPoints = Object.values(current.elementPointsToAdd);
-                const bestPoints = Object.values(best.elementPointsToAdd);
-                
-                const currentStdDev = standardDeviation(currentPoints);
-                const bestStdDev = standardDeviation(bestPoints);
-                
-                return currentStdDev < bestStdDev ? current : best;
-            }, equalPointStrategies[0]);
+        // Find strategies that use minimum points (with a tolerance of 1 point)
+        const effectiveStrategies = [];
+        for (const [pointTotal, strategies] of Object.entries(strategyGroups)) {
+            if (parseFloat(pointTotal) <= minTotalPoints + 1) {
+                effectiveStrategies.push(...strategies);
+            }
         }
         
-        return minPointsStrategy;
+        // If we have multiple effective strategies, choose the one with the best balance
+        if (effectiveStrategies.length > 1) {
+            // Calculate a balance score for each strategy (higher is better)
+            const scoredStrategies = effectiveStrategies.map(strategy => {
+                // Get element contributions
+                const contributions = {};
+                elements.forEach(element => {
+                    if (element.calculatedNote < 12) {
+                        const pointsAdded = strategy.elementPointsToAdd[element.name] || 0;
+                        if (pointsAdded > 0) {
+                            contributions[element.name] = {
+                                pointsAdded,
+                                weight: element.normalizedWeight,
+                                contribution: pointsAdded * element.normalizedWeight
+                            };
+                        }
+                    }
+                });
+                
+                // Score based on:
+                // 1. How many elements receive points (more is better)
+                // 2. Standard deviation of contributions (lower is better)
+                // 3. Correlation between weight and points added (lower is better, to prevent bias toward high-weight elements)
+                
+                const numElements = Object.keys(contributions).length;
+                const contributionValues = Object.values(contributions).map(c => c.contribution);
+                const stdDev = standardDeviation(contributionValues);
+                
+                // Calculate correlation between weight and points
+                const weights = Object.values(contributions).map(c => c.weight);
+                const points = Object.values(contributions).map(c => c.pointsAdded);
+                const weightPointCorrelation = Math.abs(correlation(weights, points));
+                
+                // Balance score: more elements is better, lower stddev is better, lower correlation is better
+                const balanceScore = numElements * 2 - stdDev * 3 - weightPointCorrelation * 5;
+                
+                return { 
+                    strategy, 
+                    balanceScore, 
+                    totalPoints: strategy.totalPointsAdded,
+                    numElements,
+                    stdDev,
+                    weightPointCorrelation
+                };
+            });
+            
+            // Sort by balance score (highest first)
+            scoredStrategies.sort((a, b) => b.balanceScore - a.balanceScore);
+            
+            // Return the strategy with the best balance score
+            return scoredStrategies[0].strategy;
+        }
+        
+        // If only one effective strategy, return it
+        return effectiveStrategies[0];
+    }
+    
+    // Helper function to calculate correlation between two arrays
+    function correlation(x, y) {
+        if (x.length !== y.length) return 0;
+        if (x.length === 0) return 0;
+        
+        const n = x.length;
+        const xMean = x.reduce((a, b) => a + b, 0) / n;
+        const yMean = y.reduce((a, b) => a + b, 0) / n;
+        
+        let numerator = 0;
+        let xVariance = 0;
+        let yVariance = 0;
+        
+        for (let i = 0; i < n; i++) {
+            const xDiff = x[i] - xMean;
+            const yDiff = y[i] - yMean;
+            numerator += xDiff * yDiff;
+            xVariance += xDiff * xDiff;
+            yVariance += yDiff * yDiff;
+        }
+        
+        if (xVariance === 0 || yVariance === 0) return 0;
+        return numerator / Math.sqrt(xVariance * yVariance);
     }
     
     // Helper function to calculate standard deviation
