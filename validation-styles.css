@@ -28,9 +28,9 @@
     background-color: #ff5252;
     color: white;
     border-radius: 50%;
-    width: 26px;
-    height: 26px;
-    font-size: 12px;
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
     font-weight: bold;
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     cursor: pointer;
@@ -109,4 +109,39 @@ td:has(.validation-indicator) {
 
 td:has(.validation-indicator:hover) {
     background-color: rgba(255, 82, 82, 0.05);
+}
+
+/* Style for modules with session 2 notes (already completed) */
+tr.module-with-session2 {
+    background-color: rgba(200, 230, 255, 0.1);
+}
+
+tr.module-with-session2 td {
+    color: #0066cc;
+}
+
+/* Add a small indicator for modules with session 2 data */
+tr.module-with-session2 td:first-child::after {
+    content: " (S2)";
+    font-size: 10px;
+    color: #0066cc;
+    font-weight: bold;
+    opacity: 0.7;
+    vertical-align: super;
+}
+
+/* Style for elements in modules with session 2 notes */
+tr.element-with-session2 {
+    background-color: rgba(200, 230, 255, 0.05);
+}
+
+tr.element-with-session2 td {
+    color: #555;
+}
+
+/* Add a small "completed" indicator for session 2 elements */
+tr.element-with-session2 td:nth-child(3)::after {
+    content: " ✓";
+    font-size: 10px;
+    color: #0066cc;
 }

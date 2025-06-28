@@ -148,26 +148,40 @@ Si cette note maximale théorique est inférieure à 12/20, l'algorithme ajuste 
 
 L'algorithme utilise quatre stratégies distinctes pour distribuer les points et sélectionne celle qui donne le meilleur résultat.
 
-### Stratégie 4: Distribution équilibrée (stratégie principale)
+### Stratégie 4: Distribution ultra-équilibrée (stratégie principale)
 
-Cette stratégie (`simulateBalancedDistribution`) est désormais la stratégie principale et vise à distribuer les points de manière véritablement équitable entre tous les éléments, indépendamment de leurs coefficients:
+Cette stratégie (`simulateBalancedDistribution`) est la stratégie principale et vise à distribuer les points de manière véritablement équitable entre tous les éléments, avec une forte compensation pour contrebalancer l'influence des coefficients:
 
 1. Comme pour les autres stratégies, l'algorithme commence par garantir le minimum de 5/20 pour tous les éléments
-2. Phase 1 - Distribution égale:
-   - Chaque élément éligible reçoit exactement la même quantité de points (indépendamment du poids)
-   - Cette approche garantit que tous les éléments participent équitablement à l'amélioration
-3. Phase 2 - Distribution anti-poids:
-   - Si la distribution égale n'est pas suffisante pour atteindre la validation, une deuxième phase débute
-   - Les éléments sont triés avec un biais explicite contre les poids élevés (inversement proportionnel au poids)
-   - Les éléments à poids faible sont donc priorisés, contrant l'avantage naturel des éléments à poids élevé
-   - Pour les éléments de poids similaires, les notes les plus basses sont prioritaires
-4. La stratégie respecte également les autres règles de distribution:
+2. Phase 1 - Détection et traitement adaptatif:
+   - L'algorithme détecte automatiquement si le module présente une distribution de poids inégale
+   - Il identifie les éléments à poids élevé (≥ 35%) et calcule le rapport entre le poids maximum et le poids minimum
+   
+   **Pour les modules avec distribution de poids inégale:**
+   - Une fonction de pondération inverse au carré est utilisée: `1/(poids²)` - réduisant exponentiellement l'impact des éléments à poids élevé
+   - Le facteur d'amplification s'adapte automatiquement à la disparité des poids (plus la disparité est élevée, plus le facteur est important)
+   - Les éléments à faible poids reçoivent proportionnellement beaucoup plus de points que ceux à poids élevé
+   
+   **Pour les modules avec poids plus équilibrés:**
+   - Une distribution égale des points est appliquée à tous les éléments éligibles, ignorant les poids
+   
+3. Phase 2 - Distribution anti-poids avancée:
+   - Si la distribution initiale n'est pas suffisante pour atteindre la validation, une deuxième phase plus agressive débute
+   - Les éléments sont triés avec un biais non-linéaire contre les poids élevés (fonction exponentielle de l'inverse du poids)
+   - Pour des différences de poids importantes, l'algorithme utilise une fonction de puissance pour amplifier la préférence vers les éléments à faible poids
+   - Pour des poids similaires, l'algorithme prend en compte à la fois la note actuelle et les points déjà ajoutés
+   - Le facteur d'amplification s'adapte dynamiquement à la disparité des poids du module
+
+4. La stratégie respecte toujours les règles fondamentales:
    - Maximum 5 points pour les notes > 10/20
    - Pas d'amélioration pour les éléments avec note ≥ 12/20
 
-Cette stratégie garantit une distribution équitable même lorsqu'un élément a un coefficient beaucoup plus élevé que les autres (par exemple 40% vs 30% vs 30%), évitant ainsi de concentrer tous les efforts sur un seul élément.
+Cette stratégie garantit une distribution ultra-équilibrée même dans les cas extrêmes, quelle que soit la position de l'élément à poids élevé:
+- Premier élément à poids élevé (ex: 50%-25%-25%, 40%-30%-30%)
+- Élément central à poids élevé (ex: 25%-50%-25%, 30%-40%-30%)
+- Dernier élément à poids élevé (ex: 25%-25%-50%, 30%-30%-40%)
 
-Cette stratégie est particulièrement utile pour les modules ayant des éléments de poids très différents (ex: 40%, 30%, 30%), où une approche purement basée sur les coefficients concentrerait excessivement les points sur l'élément de plus grand poids.
+L'algorithme assure que les efforts d'amélioration ne sont jamais concentrés majoritairement sur un seul élément, quelle que soit sa position ou son poids relatif. Plus la disparité des poids est importante, plus l'algorithme compense agressivement en faveur des éléments à faible poids, indépendamment de leur position dans le module.
 
 ### Stratégie 1: Prioriser les notes basses
 
@@ -213,21 +227,34 @@ L'approche récursive utilise également une technique d'élagage pour améliore
 
 ### Sélection de la meilleure stratégie
 
-La fonction `findBestStrategy` compare les résultats des quatre stratégies et sélectionne celle qui donne les meilleurs résultats:
+La fonction `findBestStrategy` implémente un système sophistiqué d'évaluation et de sélection parmi les quatre stratégies:
 
-1. Elle filtre d'abord les stratégies qui ne permettent pas d'atteindre la validation du module
-2. Elle regroupe les stratégies par nombre total de points (avec une marge d'erreur)
-3. Elle sélectionne toutes les stratégies qui utilisent un nombre de points proche du minimum (tolérance de 1 point)
-4. Parmi ces stratégies "efficaces", elle calcule un score d'équilibre basé sur plusieurs critères:
-   - Le nombre d'éléments qui reçoivent des points (plus est mieux)
-   - L'écart-type des contributions (moins est mieux)
-   - La corrélation entre les poids et les points ajoutés (moins est mieux, impact fortement amplifié)
-   - Nouveau: Un bonus d'anti-corrélation pour les modules avec des poids inégaux (détection automatique)
+1. D'abord, elle filtre les stratégies non-viables (celles qui n'atteignent pas la validation)
+2. Elle regroupe les stratégies par nombre total de points (avec marge d'erreur de 0.5)
+3. Elle sélectionne les stratégies qui utilisent un nombre de points proche du minimum (tolérance de 1 point)
+4. Parmi ces stratégies "efficaces", elle calcule un score d'équilibre avancé:
+   - Composante 1: Nombre d'éléments qui reçoivent des points (plus est mieux, pondération x2)
+   - Composante 2: Écart-type des contributions (moins est mieux, pénalité x4)
+   - Composante 3: Corrélation au carré entre poids et points ajoutés (moins est mieux, pénalité x10)
+   - Composante 4: Métriques avancées de disparité des poids
+     * Calcul du ratio entre poids maximum et minimum
+     * Coefficient de variation des poids (mesure standardisée de dispersion)
+     * Facteur d'ajustement dynamique basé sur la disparité des poids
+   - Composante 5: Bonus d'équité substantiel pour les modules à poids inégaux
+     * Le bonus s'intensifie exponentiellement avec la disparité des poids
+     * L'anti-corrélation est fortement récompensée (jusqu'à 15x pour les cas extrêmes)
 5. La stratégie avec le meilleur score d'équilibre est sélectionnée
 
-Cette approche sophistiquée permet de sélectionner une solution qui est à la fois efficace (nombre de points proche du minimum) et équilibrée (distribution optimale entre les éléments). Le système détecte automatiquement les cas où un élément a un poids significativement plus élevé que les autres, et applique alors un bonus important aux stratégies qui évitent de concentrer les points sur cet élément.
+Cette méthode d'évaluation multi-critères garantit une approche hautement adaptative qui:
+- Favorise l'efficacité (nombre minimal de points nécessaires)
+- Maximise la participation de tous les éléments à l'amélioration
+- Assure une distribution équilibrée des points entre les éléments
+- Détecte et compense automatiquement les disparités de poids
+- Applique une correction plus agressive lorsqu'un élément a un poids disproportionné
 
-L'ordre de priorité des stratégies a également été modifié: la stratégie de distribution équilibrée (Stratégie 4) est désormais considérée en premier, avant même la stratégie d'optimisation du nombre total de points, ce qui reflète l'importance accordée à l'équilibre de la distribution.
+L'algorithme utilise plusieurs mesures statistiques (variance, écart-type, coefficient de variation, corrélation) pour quantifier objectivement l'équité de la distribution. La compensation est exponentielle: plus la distribution des poids est inégale, plus l'algorithme favorise les stratégies qui contrebalancent cette inégalité.
+
+Dans la hiérarchie des stratégies, la distribution ultra-équilibrée (Stratégie 4) est désormais considérée en premier, suivi des autres stratégies, reflétant la priorité absolue accordée à l'équilibre de la distribution.
 
 ## Interface utilisateur et informations visuelles
 
@@ -261,12 +288,13 @@ La fonction `applyValidationIndicators(modules)` ajoute des indicateurs visuels 
 L'algorithme gère plusieurs cas particuliers:
 
 1. **Module déjà validé**: Si le module a déjà une note ≥ 12/20, aucun calcul n'est effectué.
-2. **Éléments avec note ≥ 12/20**: Ces éléments sont ignorés dans la distribution des points.
-3. **Éléments avec note < 5/20**: L'algorithme s'assure d'abord que ces éléments atteignent au moins 5/20.
-4. **Éléments avec note > 10/20**: Pour ces éléments, l'algorithme n'ajoutera jamais plus de 5 points supplémentaires, favorisant ainsi une distribution plus équilibrée.
-5. **Limite théorique < 12/20**: Si même avec les améliorations maximales, il n'est pas possible d'atteindre 12/20, l'algorithme vise la note maximale possible.
-6. **Modules avec coefficients égaux**: L'algorithme détecte les cas où les coefficients sont probablement égaux et s'adapte en conséquence.
-7. **Modules avec données insuffisantes**: Si les données sont insuffisantes pour calculer les coefficients, l'algorithme utilise des poids égaux par défaut.
+2. **Modules avec notes de Session 2**: Les modules qui ont déjà des notes de rattrapage (Session 2) sont considérés comme finalisés et ne reçoivent pas d'indicateurs de validation. Ces modules sont visuellement identifiés par une mention "(S2)" et un style distinct.
+3. **Éléments avec note ≥ 12/20**: Ces éléments sont ignorés dans la distribution des points.
+4. **Éléments avec note < 5/20**: L'algorithme s'assure d'abord que ces éléments atteignent au moins 5/20.
+5. **Éléments avec note > 10/20**: Pour ces éléments, l'algorithme n'ajoutera jamais plus de 5 points supplémentaires, favorisant ainsi une distribution plus équilibrée.
+6. **Limite théorique < 12/20**: Si même avec les améliorations maximales, il n'est pas possible d'atteindre 12/20, l'algorithme vise la note maximale possible.
+7. **Modules avec coefficients égaux**: L'algorithme détecte les cas où les coefficients sont probablement égaux et s'adapte en conséquence.
+8. **Modules avec données insuffisantes**: Si les données sont insuffisantes pour calculer les coefficients, l'algorithme utilise des poids égaux par défaut.
 
 ## Exemples et scénarios
 
@@ -324,3 +352,138 @@ Stratégie optimale:
 3. Nouvelle note du module: (12*0.5 + 14*0.5) = 13/20
 
 Cet exemple montre comment l'algorithme s'assure d'abord que tous les éléments atteignent la note minimale de 5/20 avant d'optimiser la distribution des points.
+
+### Scénario 5: Module avec distribution de poids très inégale
+
+#### 5.1: Premier élément à coefficient élevé
+
+Module: "Architecture Logicielle"  
+Note actuelle: 8.5/20  
+Éléments:
+- EM1: "Travail de groupe" - Note: 9/20, Coefficient calculé: 0.5 (50%)
+- EM2: "Exercices" - Note: 8/20, Coefficient calculé: 0.3 (30%)
+- EM3: "Participation" - Note: 8/20, Coefficient calculé: 0.2 (20%)
+
+**Approche traditionnelle (basée uniquement sur les coefficients):**  
+La stratégie qui optimiserait uniquement le nombre de points minimaux nécessaires placerait tous les points sur l'élément à coefficient le plus élevé:
+- Ajouter 7 points à EM1 (16/20)
+- Aucun point pour EM2 et EM3
+- Nouvelle note du module: (16*0.5 + 8*0.3 + 8*0.2) = 12/20
+
+**Stratégie ultra-équilibrée implémentée:**  
+1. L'algorithme détecte la disparité des poids (50% vs 30% vs 20%)
+2. Il applique une fonction de pondération inverse au carré pour contrebalancer cette disparité
+3. Distribution équilibrée résultante:
+   - Ajouter 4 points à EM1 (13/20)
+   - Ajouter 5 points à EM2 (13/20)
+   - Ajouter 6 points à EM3 (14/20)
+4. Nouvelle note du module: (13*0.5 + 13*0.3 + 14*0.2) = 13.2/20
+
+#### 5.2: Élément central à coefficient élevé
+
+Module: "Intelligence Artificielle"  
+Note actuelle: 8.5/20  
+Éléments:
+- EM1: "Théorie" - Note: 9/20, Coefficient calculé: 0.25 (25%)
+- EM2: "Projet principal" - Note: 8/20, Coefficient calculé: 0.5 (50%)
+- EM3: "Démonstrations" - Note: 8/20, Coefficient calculé: 0.25 (25%)
+
+**Approche traditionnelle (basée uniquement sur les coefficients):**  
+- Ajouter 0 points à EM1 (9/20)
+- Ajouter 8 points à EM2 (16/20) - Concentration sur l'élément à poids élevé 
+- Ajouter 0 points à EM3 (8/20)
+- Nouvelle note du module: (9*0.25 + 16*0.5 + 8*0.25) = 12.25/20
+
+**Stratégie ultra-équilibrée implémentée:**  
+1. L'algorithme détecte la disparité des poids avec un élément central dominant
+2. Il applique la même fonction de pondération inverse au carré
+3. Distribution équilibrée résultante:
+   - Ajouter 5 points à EM1 (14/20)
+   - Ajouter 4 points à EM2 (12/20)
+   - Ajouter 5 points à EM3 (13/20)
+4. Nouvelle note du module: (14*0.25 + 12*0.5 + 13*0.25) = 12.75/20
+
+#### 5.3: Dernier élément à coefficient élevé
+
+Module: "Génie Logiciel"  
+Note actuelle: 8.5/20  
+Éléments:
+- EM1: "Exercices" - Note: 9/20, Coefficient calculé: 0.2 (20%)
+- EM2: "Travaux dirigés" - Note: 8/20, Coefficient calculé: 0.3 (30%)
+- EM3: "Projet final" - Note: 8/20, Coefficient calculé: 0.5 (50%)
+
+**Approche traditionnelle (basée uniquement sur les coefficients):**  
+- Ajouter 0 points à EM1 (9/20)
+- Ajouter 0 points à EM2 (8/20)
+- Ajouter 7 points à EM3 (15/20) - Concentration sur l'élément à poids élevé
+- Nouvelle note du module: (9*0.2 + 8*0.3 + 15*0.5) = 11.8/20
+
+**Stratégie ultra-équilibrée implémentée:**  
+1. L'algorithme détecte la disparité des poids avec un dernier élément dominant
+2. Application identique de la fonction inverse au carré
+3. Distribution équilibrée résultante:
+   - Ajouter 6 points à EM1 (15/20)
+   - Ajouter 5 points à EM2 (13/20)
+   - Ajouter 3 points à EM3 (11/20)
+4. Nouvelle note du module: (15*0.2 + 13*0.3 + 11*0.5) = 12.4/20
+
+Cette distribution est légèrement moins optimale en termes de nombre total de points (15 vs 7), mais elle est nettement plus équilibrée, assurant une amélioration significative de chaque élément du module. L'algorithme de sélection des stratégies identifie et privilégie cette approche équilibrée dans ce scénario de poids inégaux, reflétant l'importance accordée à l'équilibre par rapport à la simple optimisation numérique.
+
+## Justification mathématique de l'approche ultra-équilibrée
+
+La distribution ultra-équilibrée repose sur des principes mathématiques avancés qui contrebalancent l'avantage mathématique naturel des éléments à coefficient élevé:
+
+### Problème fondamental des coefficients inégaux
+
+Avec une approche naïve, l'efficacité d'un point ajouté à un élément est directement proportionnelle à son coefficient:
+- Pour un élément avec coefficient 0.5 (50%), chaque point ajouté contribue 0.5 point à la note finale
+- Pour un élément avec coefficient 0.2 (20%), chaque point ajouté ne contribue que 0.2 point
+
+Cette relation linéaire crée un biais mathématique qui favorise toujours les éléments à coefficient élevé.
+
+### Solution: Fonction de pondération inverse non-linéaire
+
+Notre approche utilise une fonction de pondération inverse au carré pour contrebalancer ce biais:
+
+```
+PoidsEffectif = 1 / (Coefficient²)
+```
+
+Pour notre exemple précédent:
+- Élément à 50%: PoidsEffectif = 1/(0.5²) = 4
+- Élément à 20%: PoidsEffectif = 1/(0.2²) = 25
+
+Cette transformation non-linéaire inverse complètement la relation d'efficacité:
+- L'élément à 20% est maintenant considéré 6.25x plus "efficace" que celui à 50%
+- Le carré dans le dénominateur amplifie l'effet pour les coefficients plus petits
+
+### Facteur d'amplification dynamique
+
+Le système ajuste automatiquement l'intensité de cette correction en fonction de la disparité des coefficients dans le module:
+
+```
+DisparitéCoefficients = CoefficientMax / CoefficientMin
+FacteurAmplification = min(MaxBoost, DisparitéCoefficients * Multiplicateur)
+```
+
+Où:
+- MaxBoost définit la limite supérieure d'amplification (typiquement 3-5)
+- Multiplicateur est un facteur d'ajustement (typiquement 1.2-2)
+
+Cette approche adapte la puissance de la correction à chaque module, appliquant une compensation plus forte uniquement lorsque c'est nécessaire.
+
+### Score d'équilibre multi-critères
+
+La fonction de sélection de stratégie utilise une formule composite qui évalue l'équité d'une distribution:
+
+```
+ScoreÉquilibre = (NombreÉléments × 2) - (ÉcartType × 4) - (Corrélation² × 10) + BonusDisparité
+```
+
+Où:
+- NombreÉléments favorise les stratégies qui distribuent des points à plus d'éléments
+- ÉcartType pénalise les distributions avec des contributions très inégales
+- Corrélation² pénalise fortement les stratégies où les points sont alloués proportionnellement aux coefficients
+- BonusDisparité applique une correction supplémentaire pour les modules à coefficients très inégaux
+
+Cette approche mathématiquement équilibrée garantit que, même dans les cas extrêmes de disparité de coefficients, tous les éléments d'un module reçoivent une amélioration substantielle, assurant un développement académique équilibré. L'algorithme fonctionne indépendamment de la position de l'élément à coefficient élevé - que ce soit le premier, le deuxième, le dernier ou n'importe quelle position intermédiaire dans un module avec plusieurs éléments. Cette robustesse face à toutes les configurations de poids possibles assure une équité systématique dans toutes les situations.

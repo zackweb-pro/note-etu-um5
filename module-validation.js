@@ -232,22 +232,72 @@ function calculatePointsNeeded(module) {
         // Calculate initial equal distribution of points (ignoring weights)
         // This will ensure that all elements receive improvements
         
-        // Phase 1: Equal Distribution - give each element the same amount of points
+        // Phase 1: Ultra-Equal Distribution - completely ignore weights
         const numElements = remainingElements.length;
         if (numElements > 0) {
-            // Start with equal distribution (completely balanced)
-            let equalPoints = pointsStillNeeded / numElements;
+            // First, detect if we have an uneven weight distribution
+            const weights = remainingElements.map(e => e.normalizedWeight);
+            const maxWeight = Math.max(...weights);
+            const minWeight = Math.min(...weights);
+            const weightDisparity = maxWeight / minWeight;
+            // Detect if any element has a significantly higher weight (40% or similar)
+            // Note: This works regardless of which element (first, middle, or last) has the high weight
+            const hasHighWeightElement = maxWeight > 0.35;
             
-            // Apply first round of equal distribution
-            for (const element of remainingElements) {
-                // Apply rule: Never add more than 5 points to elements with score > 10
-                const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
-                const currentPoints = result.elementPointsToAdd[element.name] || 0;
-                const additionalPoints = Math.min(equalPoints, maxAllowedPoints - currentPoints);
+            // ULTRA-BALANCED STRATEGY IMPLEMENTATION
+            // If we have a high-weight element (like 40%), use an ultra-balanced approach
+            // to force distributing points to lower-weighted elements
+            // This is the key innovation to ensure proper balance even with extreme weight disparities
+            if (hasHighWeightElement && weightDisparity > 1.2) {
+                // For uneven weight distributions, we assign more points to low-weighted elements
+                // Sort by inverse weight (lowest weight first)
+                // This sorting approach works regardless of which position the high-weight element is in
+                // (whether it's the first, middle, or last element in the module)
+                const sortedByLowWeight = [...remainingElements].sort((a, b) => 
+                    a.normalizedWeight - b.normalizedWeight);
                 
-                if (additionalPoints > 0) {
-                    result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
-                    result.totalPointsAdded += additionalPoints;
+                // Calculate variable points based on inverse weights
+                let totalInverseWeight = sortedByLowWeight.reduce((sum, el) => 
+                    sum + (1 / (el.normalizedWeight * el.normalizedWeight)), 0); // Square the denominator for more aggressive inverse weighting
+                
+                for (const element of sortedByLowWeight) {
+                    // Calculate inverse-weight-based points (more points to lower weights)
+                    // Squaring the denominator makes the distribution more aggressively favor low-weighted elements
+                    // Use inverse square weighting to dramatically favor elements with lower weights
+                    // This non-linear function is key to counteracting the natural advantage of high-weight elements
+                    const inverseWeightRatio = (1 / (element.normalizedWeight * element.normalizedWeight)) / totalInverseWeight;
+                    
+                    // Adjust boost factor dynamically based on weight disparity
+                    // Higher disparity means stronger boost - this adapts the intensity of the balance correction
+                    // to the specific module's weight distribution - more aggressive when needed, more moderate when not
+                    const boostFactor = Math.max(1.5, Math.min(3.0, weightDisparity * 1.2));
+                    const targetPoints = pointsStillNeeded * inverseWeightRatio * boostFactor;
+                    
+                    // Apply rule: Never add more than 5 points to elements with score > 10
+                    const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
+                    const currentPoints = result.elementPointsToAdd[element.name] || 0;
+                    const additionalPoints = Math.min(targetPoints, maxAllowedPoints - currentPoints);
+                    
+                    if (additionalPoints > 0) {
+                        result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
+                        result.totalPointsAdded += additionalPoints;
+                    }
+                }
+            } else {
+                // For more balanced weight distributions, use equal distribution
+                let equalPoints = pointsStillNeeded / numElements;
+                
+                // Apply first round of equal distribution
+                for (const element of remainingElements) {
+                    // Apply rule: Never add more than 5 points to elements with score > 10
+                    const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
+                    const currentPoints = result.elementPointsToAdd[element.name] || 0;
+                    const additionalPoints = Math.min(equalPoints, maxAllowedPoints - currentPoints);
+                    
+                    if (additionalPoints > 0) {
+                        result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
+                        result.totalPointsAdded += additionalPoints;
+                    }
                 }
             }
             
@@ -275,14 +325,27 @@ function calculatePointsNeeded(module) {
                         const aPoints = result.elementPointsToAdd[a.name] || 0;
                         const bPoints = result.elementPointsToAdd[b.name] || 0;
                         
-                        // Anti-weight bias - explicitly reverse the weight advantage
-                        // Lower weight gets priority, and if weights are similar, prioritize lower score
-                        const weightBias = b.normalizedWeight - a.normalizedWeight;
-                        if (Math.abs(weightBias) > 0.05) { // If weights differ significantly
-                            return weightBias; // Higher priority to lower-weighted elements
+                        // Enhanced anti-weight bias - more aggressively reverse the weight advantage
+                        // Using a non-linear function to prioritize lower-weighted elements
+                        // Square the weight difference to make the bias more pronounced
+                        const weightDifference = b.normalizedWeight - a.normalizedWeight;
+                        
+                        // Check if weights are significantly different
+                        if (Math.abs(weightDifference) > 0.05) {
+                            // Calculate bias with increasing intensity as the weight gap increases
+                            const weightBias = Math.sign(weightDifference) * Math.pow(Math.abs(weightDifference) * 10, 1.5);
+                            return weightBias; // Much higher priority to lower-weighted elements
                         } else {
-                            // If weights are similar, prioritize by score
-                            return a.calculatedNote - b.calculatedNote;
+                            // If weights are similar, prioritize by score first, then by points already added (less is better)
+                            const scoreDiff = a.calculatedNote - b.calculatedNote;
+                            if (Math.abs(scoreDiff) > 1) {
+                                return scoreDiff; // Prioritize by score if difference is significant
+                            } else {
+                                // If scores are similar too, prioritize element that received fewer points so far
+                                const aPoints = result.elementPointsToAdd[a.name] || 0;
+                                const bPoints = result.elementPointsToAdd[b.name] || 0;
+                                return aPoints - bPoints;
+                            }
                         }
                     });
                 
@@ -295,13 +358,27 @@ function calculatePointsNeeded(module) {
                     
                     if (maxAdditional <= 0) continue;
                     
-                    // Use the effective weight (inverted) to distribute points
-                    const effectiveWeight = 1 / Math.max(0.1, element.normalizedWeight); // Invert the weight
-                    const normalizedEffectiveWeight = effectiveWeight / balancingElements.reduce((sum, el) => 
-                        sum + (1 / Math.max(0.1, el.normalizedWeight)), 0);
+                    // Use a more aggressive non-linear inverse weighting function
+                    // Square the denominator to make the effect more pronounced for low-weighted elements
+                    const effectiveWeight = 1 / Math.pow(Math.max(0.1, element.normalizedWeight), 2);
                     
+                    // Calculate normalized effective weight using the same non-linear function for all elements
+                    const normalizedEffectiveWeight = effectiveWeight / balancingElements.reduce((sum, el) => 
+                        sum + (1 / Math.pow(Math.max(0.1, el.normalizedWeight), 2)), 0);
+                    
+                    // Apply a more aggressive multiplier that scales with the weight inequality in the module
+                    // Higher weight disparity = more aggressive boost to counterbalance high-weight elements
+                    const weights = balancingElements.map(e => e.normalizedWeight);
+                    const maxElementWeight = Math.max(...weights);
+                    const minElementWeight = Math.min(...weights);
+                    const weightDisparityFactor = maxElementWeight / minElementWeight; 
+                    
+                    // Boost factor scales with weight disparity: higher disparity = stronger boost
+                    const boostFactor = Math.max(2.0, Math.min(5.0, weightDisparityFactor * 2));
+                    
+                    // Adjust points based on normalized effective weight and boost factor
                     const additionalPoints = Math.min(
-                        remainingNeeded * normalizedEffectiveWeight * 2, // Multiply by 2 to make it more aggressive
+                        remainingNeeded * normalizedEffectiveWeight * boostFactor,
                         maxAdditional
                     );
                     
@@ -703,15 +780,31 @@ function calculatePointsNeeded(module) {
                 const maxWeight = Math.max(...weights);
                 const weightUnevenness = maxWeight - (1 / numElements);
                 
-                // Balance score components:
-                // 1. More elements is better (multiplier 2)
-                // 2. Lower stddev is better (penalty multiplier 3)
-                // 3. Lower correlation with weights is better (penalty multiplier 8 - increased from 5)
-                // 4. NEW: Add a bonus when weights are uneven (to enforce balanced distribution)
-                const unevennessBonus = weightUnevenness > 0.1 ? (1 - weightPointCorrelation) * 10 : 0;
+                // Calculate the extreme weight ratio (highest to lowest weight)
+                const minWeight = Math.min(...weights);
+                const weightRatio = minWeight > 0 ? maxWeight / minWeight : 0;
                 
-                // Balance score: more elements is better, lower stddev is better, lower correlation is better
-                const balanceScore = numElements * 2 - stdDev * 3 - weightPointCorrelation * 8 + unevennessBonus;
+                // Calculate the coefficient of variation of weights (standardized measure of dispersion)
+                const weightMean = weights.reduce((sum, w) => sum + w, 0) / weights.length;
+                const weightVariance = weights.reduce((sum, w) => sum + Math.pow(w - weightMean, 2), 0) / weights.length;
+                const weightCV = weightMean > 0 ? Math.sqrt(weightVariance) / weightMean : 0;
+                
+                // Balance score components with enhanced sensitivity to weight disparities:
+                // 1. More elements is better (multiplier 2) - unchanged
+                // 2. Lower stddev is better (penalty multiplier increased to 4)
+                // 3. Lower correlation with weights is better (penalty multiplier increased to 10)
+                // 4. Enhanced bonus for uneven weights that scales with weight disparity
+                
+                // Calculate the bonus factor based on weight disparity metrics
+                const disparityScore = Math.max(weightUnevenness, weightCV);
+                const disparityFactor = Math.max(1, Math.min(3, weightRatio));
+                
+                // Higher bonus when weights are uneven AND correlation is low (anti-correlation is good)
+                const unevennessBonus = disparityScore > 0.1 ? 
+                    (1 - Math.pow(weightPointCorrelation, 2)) * 15 * disparityFactor : 0;
+                
+                // Enhanced balance score with stronger penalties and bonuses
+                const balanceScore = numElements * 2 - stdDev * 4 - Math.pow(weightPointCorrelation, 2) * 10 + unevennessBonus;
                 
                 return { 
                     strategy, 
@@ -853,28 +946,49 @@ function applyValidationIndicators(modules) {
                 if (currentModuleIndex < modules.length) {
                     currentModule = modules[currentModuleIndex];
                     
-                    // Only calculate points needed for non-validated modules
-                    if (!currentModule.isValid && currentModule.finalNote < 12) {
+                    // Check if this module has session 2 notes (completed module)
+                    const hasSession2Notes = currentModule.elements && 
+                        currentModule.elements.some(e => e.session2Note && e.session2Note > 0);
+                    
+                    // Mark the module as having session 2 data
+                    currentModule.hasSession2Data = hasSession2Notes;
+                    
+                    // Apply visual styling to indicate this is a module with session 2 data
+                    if (hasSession2Notes) {
+                        row.classList.add('module-with-session2');
+                    }
+                    
+                    // Only calculate points needed for non-validated modules that don't have session 2 notes
+                    // Since modules with session 2 notes are already completed and can't be improved
+                    if (!currentModule.isValid && currentModule.finalNote < 12 && !hasSession2Notes) {
                         calculatePointsNeeded(currentModule);
                     }
                 }
             } 
-            // When we find an element row, add validation indicators if needed
-            else if (moduleType === 'EM' && currentModule && !currentModule.isValid && currentModule.finalNote < 12) {
-                const element = currentModule.elements.find(e => e.name === moduleName);
-                if (element && element.pointsToAdd > 0) {
-                    // Create indicator element
-                    const indicatorDiv = document.createElement('div');
-                    indicatorDiv.className = 'validation-indicator';
-                    indicatorDiv.innerHTML = `
-                        <span class="points-badge">+${Math.ceil(element.pointsToAdd * 10) / 10}</span>
-                        ${createValidationTooltip(element, currentModule)}
-                    `;
-                    
-                    // Add to the row
-                    const noteCell = cells[2]; // Session 1 note cell
-                    noteCell.style.position = 'relative';
-                    noteCell.appendChild(indicatorDiv);
+            // When we find an element row
+            else if (moduleType === 'EM' && currentModule) {
+                // If this is an element of a module with session 2 data, mark it 
+                if (currentModule.hasSession2Data) {
+                    row.classList.add('element-with-session2');
+                }
+                
+                // Only add validation indicators for non-valid modules without session 2 notes
+                if (!currentModule.isValid && currentModule.finalNote < 12 && !currentModule.hasSession2Data) {
+                    const element = currentModule.elements.find(e => e.name === moduleName);
+                    if (element && element.pointsToAdd > 0) {
+                        // Create indicator element
+                        const indicatorDiv = document.createElement('div');
+                        indicatorDiv.className = 'validation-indicator';
+                        indicatorDiv.innerHTML = `
+                            <span class="points-badge">+${Math.ceil(element.pointsToAdd * 10) / 10}</span>
+                            ${createValidationTooltip(element, currentModule)}
+                        `;
+                        
+                        // Add to the row
+                        const noteCell = cells[2]; // Session 1 note cell
+                        noteCell.style.position = 'relative';
+                        noteCell.appendChild(indicatorDiv);
+                    }
                 }
             }
         }

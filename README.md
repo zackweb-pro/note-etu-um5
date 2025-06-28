@@ -10,9 +10,11 @@ Cette extension Chrome calcule automatiquement la moyenne générale et les moye
 - **Affichage coloré** : Interface verte distinctive pour identifier les résultats de l'extension
 - **Détails complets** : Liste de tous les modules avec leurs notes finales
 - **Optimisation pour validation** : Calcul des points nécessaires pour valider un module non validé
-- **Distribution optimale des points** : Répartition intelligente des points entre les éléments de module
-- **Indicateurs d'optimisation** : Affichage des points à ajouter à chaque élément pour validation
+- **Distribution ultra-équilibrée des points** : Répartition intelligente et équitable des points entre les éléments de module
+- **Multi-stratégies adaptatives** : Différentes approches d'optimisation sélectionnées automatiquement selon le contexte
+- **Indicateurs d'optimisation avancés** : Affichage des points à ajouter à chaque élément pour validation
 - **Analyse des coefficients** : Estimation mathématique des poids des éléments dans chaque module
+- **Équité garantie** : Algorithmes avancés assurant que chaque élément reçoit une amélioration substantielle, même avec des coefficients très inégaux
 
 ## 📋 Logic de Calcul
 
