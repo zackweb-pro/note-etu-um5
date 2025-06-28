@@ -125,7 +125,7 @@ function calculatePointsNeeded(module) {
     }
 
     // Calculate how many points are needed to reach 12
-    const pointsNeeded = 12 - module.finalNote;
+    let pointsNeeded = 12 - module.finalNote;
     
     // If we don't have elements, return the total points needed
     if (!module.elements || module.elements.length === 0) {
@@ -142,10 +142,29 @@ function calculatePointsNeeded(module) {
         element.pointsToAdd = 0; // Initialize
     });
     
+    // Calculate the maximum possible grade with optimal improvements
+    let maxPossibleGrade = module.finalNote;
+    elements.forEach(element => {
+        if (element.calculatedNote < 20) {
+            const maxImprovement = (20 - element.calculatedNote) * element.normalizedWeight;
+            maxPossibleGrade += maxImprovement;
+        }
+    });
+    
+    // If even with maximum improvements we can't reach 12, adjust expectations
+    if (maxPossibleGrade < 12) {
+        // In this case, we aim for the maximum possible grade
+        pointsNeeded = maxPossibleGrade - module.finalNote;
+    }
+    
     // Use a simulated approach to find the most efficient distribution of points
     // Define a simulation function that tries different point allocations
     function simulatePointAllocation() {
         const strategies = [];
+        
+        // Strategy 3: Optimize for minimum total points added (now our primary strategy)
+        const strategy3 = simulateMinTotalPoints();
+        strategies.push(strategy3);
         
         // Strategy 1: Prioritize lowest grades first, especially below 5
         const strategy1 = simulateLowScoreFirst();
@@ -154,10 +173,6 @@ function calculatePointsNeeded(module) {
         // Strategy 2: Prioritize highest-weighted elements first
         const strategy2 = simulateHighWeightFirst();
         strategies.push(strategy2);
-        
-        // Strategy 3: Optimize for minimum total points added
-        const strategy3 = simulateMinTotalPoints();
-        strategies.push(strategy3);
         
         // Find best strategy (one that uses fewest points and distributes most sensibly)
         return findBestStrategy(strategies);
@@ -277,56 +292,166 @@ function calculatePointsNeeded(module) {
             totalPointsAdded: 0
         };
         
-        // Sort elements by effort-to-impact ratio (best first)
-        const sortedElements = [...elements].sort((a, b) => {
-            // Skip elements with scores >= 12
-            if (a.calculatedNote >= 12) return 1;
-            if (b.calculatedNote >= 12) return -1;
-            
-            // Calculate efficiency ratio (impact per point added)
-            // For elements < 12, calculate how many points to reach either 12 or 5 (if currently < 5)
-            const aTarget = a.calculatedNote < 5 ? 5 : 12;
-            const bTarget = b.calculatedNote < 5 ? 5 : 12;
-            
-            const aEffort = Math.max(0.1, aTarget - a.calculatedNote);
-            const bEffort = Math.max(0.1, bTarget - b.calculatedNote);
-            
-            // Calculate impact per point of effort
-            const aRatio = a.normalizedWeight / aEffort;
-            const bRatio = b.normalizedWeight / bEffort;
-            
-            return bRatio - aRatio; // Higher ratio first (more impact per point)
+        // Filter out elements that already have scores >= 12
+        const eligibleElements = elements.filter(e => e.calculatedNote < 12);
+        
+        // If no eligible elements remain, return empty result
+        if (eligibleElements.length === 0) {
+            return result;
+        }
+        
+        // First ensure all elements have at least 5 points (this is a prerequisite)
+        eligibleElements.forEach(element => {
+            if (element.calculatedNote < 5) {
+                const pointsTo5 = 5 - element.calculatedNote;
+                result.elementPointsToAdd[element.name] = pointsTo5;
+                result.totalPointsAdded += pointsTo5;
+            }
         });
         
-        // Calculate how many points we need to add to the module
-        let pointsStillNeeded = pointsNeeded;
+        // Calculate how many points we've already added for minimum grades of 5
+        let moduleImprovementSoFar = 0;
+        eligibleElements.forEach(element => {
+            const pointsAdded = result.elementPointsToAdd[element.name] || 0;
+            moduleImprovementSoFar += pointsAdded * element.normalizedWeight;
+        });
         
-        // Distribute points optimally
-        for (const element of sortedElements) {
-            // Skip elements with scores >= 12 as they don't need improvement
-            if (element.calculatedNote >= 12) continue;
+        // Calculate how many more points we need to add to the module to reach 12
+        let pointsStillNeeded = Math.max(0, pointsNeeded - moduleImprovementSoFar);
+        
+        // If we've already reached the goal, return current result
+        if (pointsStillNeeded <= 0.01) {
+            return result;
+        }
+        
+        // For very small modules with 1-2 elements, we can use the simple approach
+        if (eligibleElements.length <= 2) {
+            // Sort by efficiency (weight/effort ratio)
+            const sortedElements = [...eligibleElements].sort((a, b) => {
+                const aEfficiency = a.normalizedWeight / (1 - a.normalizedWeight);
+                const bEfficiency = b.normalizedWeight / (1 - b.normalizedWeight);
+                return bEfficiency - aEfficiency; // Most efficient first
+            });
             
-            // Calculate optimal points for this element
-            let pointsForElement = 0;
+            // Add points to the most efficient element
+            const bestElement = sortedElements[0];
+            const maxPointsPossible = 20 - bestElement.calculatedNote;
+            const pointsForElement = Math.min(
+                pointsStillNeeded / bestElement.normalizedWeight,
+                maxPointsPossible
+            );
             
-            // If below 5, bring up to at least 5
-            if (element.calculatedNote < 5) {
-                pointsForElement = 5 - element.calculatedNote;
-            } else {
-                // Otherwise calculate optimal points based on weight and remaining need
-                const maxPointsPossible = 20 - element.calculatedNote;
-                pointsForElement = Math.min(
-                    pointsStillNeeded / element.normalizedWeight,
-                    maxPointsPossible
-                );
+            const currentPoints = result.elementPointsToAdd[bestElement.name] || 0;
+            result.elementPointsToAdd[bestElement.name] = currentPoints + pointsForElement;
+            result.totalPointsAdded += pointsForElement;
+            
+            return result;
+        }
+        
+        // For 3+ elements, try all possible combinations to find the most optimal
+        // First, create a set of possible point increments for each element
+        const possibleIncrements = {};
+        const maxIncrements = 4; // Limit to keep the search space manageable
+        
+        eligibleElements.forEach(element => {
+            // Skip elements that already have improvements to 5
+            const currentPoints = result.elementPointsToAdd[element.name] || 0;
+            const maxAdditional = 20 - (element.calculatedNote + currentPoints);
+            
+            if (maxAdditional <= 0) return;
+            
+            // Create array of possible point increments
+            const increments = [];
+            const stepSize = maxAdditional / maxIncrements;
+            
+            for (let i = 0; i <= maxIncrements; i++) {
+                const increment = Math.min(i * stepSize, maxAdditional);
+                increments.push(increment);
             }
             
-            if (pointsForElement > 0) {
-                result.elementPointsToAdd[element.name] = pointsForElement;
-                result.totalPointsAdded += pointsForElement;
-                pointsStillNeeded -= pointsForElement * element.normalizedWeight;
+            possibleIncrements[element.name] = increments;
+        });
+        
+        // Find the best combination using a greedy approach
+        let bestCombination = null;
+        let minTotalPoints = Infinity;
+        
+        // Helper function to recursively try combinations
+        function tryAllCombinations(elementIndex, currentCombination, totalPoints, moduleImprovement) {
+            // Base case: we've assigned points to all elements
+            if (elementIndex >= eligibleElements.length) {
+                // Check if this combination achieves the target
+                if (moduleImprovement >= pointsStillNeeded && totalPoints < minTotalPoints) {
+                    minTotalPoints = totalPoints;
+                    bestCombination = {...currentCombination};
+                }
+                return;
+            }
+            
+            const element = eligibleElements[elementIndex];
+            const increments = possibleIncrements[element.name] || [0];
+            const currentPoints = result.elementPointsToAdd[element.name] || 0;
+            
+            // Try each possible increment for this element
+            for (const increment of increments) {
+                currentCombination[element.name] = currentPoints + increment;
+                const newTotal = totalPoints + increment;
+                const newImprovement = moduleImprovement + (increment * element.normalizedWeight);
                 
-                if (pointsStillNeeded <= 0) break;
+                // Optimistically prune branches that can't improve the best solution
+                if (newTotal < minTotalPoints) {
+                    tryAllCombinations(elementIndex + 1, currentCombination, newTotal, newImprovement);
+                }
+            }
+            
+            // Reset this element's points before backtracking
+            delete currentCombination[element.name];
+        }
+        
+        // Start the recursive search
+        tryAllCombinations(0, {}, 0, 0);
+        
+        // Apply the best combination to our result
+        if (bestCombination) {
+            // Update the result with our optimized combination
+            for (const [elementName, points] of Object.entries(bestCombination)) {
+                const currentPoints = result.elementPointsToAdd[elementName] || 0;
+                const additionalPoints = points - currentPoints;
+                
+                if (additionalPoints > 0) {
+                    result.elementPointsToAdd[elementName] = points;
+                    result.totalPointsAdded += additionalPoints;
+                }
+            }
+        } else {
+            // Fallback strategy if no optimal solution found
+            // This uses the original approach as backup
+            const sortedElements = [...eligibleElements].sort((a, b) => {
+                const aEfficiency = a.normalizedWeight / 1;
+                const bEfficiency = b.normalizedWeight / 1;
+                return bEfficiency - aEfficiency; // Highest weight first
+            });
+            
+            // Add points to elements in order of weight
+            let remainingPoints = pointsStillNeeded;
+            for (const element of sortedElements) {
+                if (remainingPoints <= 0.01) break;
+                
+                const currentPoints = result.elementPointsToAdd[element.name] || 0;
+                const maxAdditional = 20 - (element.calculatedNote + currentPoints);
+                
+                if (maxAdditional <= 0) continue;
+                
+                const additionalPoints = Math.min(
+                    remainingPoints / element.normalizedWeight,
+                    maxAdditional
+                );
+                
+                if (additionalPoints > 0) {
+                    result.elementPointsToAdd[element.name] = currentPoints + additionalPoints;
+                    result.totalPointsAdded += additionalPoints;
+                    remainingPoints -= additionalPoints * element.normalizedWeight;
+                }
             }
         }
         
@@ -354,8 +479,46 @@ function calculatePointsNeeded(module) {
         }
         
         // Find strategy with minimum total points added
-        return validStrategies.reduce((best, current) => 
+        const minPointsStrategy = validStrategies.reduce((best, current) => 
             current.totalPointsAdded < best.totalPointsAdded ? current : best, validStrategies[0]);
+        
+        // If multiple strategies use the same number of points, prefer the one that
+        // distributes points across more elements (more balanced approach)
+        const equalPointStrategies = validStrategies.filter(
+            s => Math.abs(s.totalPointsAdded - minPointsStrategy.totalPointsAdded) < 0.01
+        );
+        
+        if (equalPointStrategies.length > 1) {
+            return equalPointStrategies.reduce((best, current) => {
+                const currentCount = Object.keys(current.elementPointsToAdd).length;
+                const bestCount = Object.keys(best.elementPointsToAdd).length;
+                
+                // If one strategy uses more elements, prefer it
+                if (currentCount !== bestCount) {
+                    return currentCount > bestCount ? current : best;
+                }
+                
+                // If they use the same number of elements, prefer the one with more balanced distribution
+                // (lower standard deviation of point additions)
+                const currentPoints = Object.values(current.elementPointsToAdd);
+                const bestPoints = Object.values(best.elementPointsToAdd);
+                
+                const currentStdDev = standardDeviation(currentPoints);
+                const bestStdDev = standardDeviation(bestPoints);
+                
+                return currentStdDev < bestStdDev ? current : best;
+            }, equalPointStrategies[0]);
+        }
+        
+        return minPointsStrategy;
+    }
+    
+    // Helper function to calculate standard deviation
+    function standardDeviation(values) {
+        if (values.length <= 1) return 0;
+        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+        return Math.sqrt(variance);
     }
     
     // Run simulation to find best point allocation
@@ -399,6 +562,16 @@ function createValidationTooltip(element, module) {
         confidenceText = "Estimation des coefficients";
     }
     
+    // Calculate "efficiency" of points added to this element
+    const efficiency = element.normalizedWeight / 1;
+    const efficiencyPercentage = Math.round(efficiency * 100);
+    
+    // Calculate how much this element contributes to total module improvement
+    const totalPointsAdded = module.elements.reduce((sum, el) => sum + (el.pointsToAdd || 0), 0);
+    const contributionPercentage = totalPointsAdded > 0 
+        ? Math.round((element.pointsToAdd / totalPointsAdded) * 100) 
+        : 0;
+    
     return `
         <div class="validation-tooltip">
             <div class="tooltip-row">Note actuelle: <strong>${element.calculatedNote.toFixed(1)}/20</strong></div>
@@ -408,6 +581,7 @@ function createValidationTooltip(element, module) {
             <div class="tooltip-row">Points à ajouter: <strong>${Math.ceil(element.pointsToAdd * 10) / 10}</strong></div>
             <div class="tooltip-row">Nouvelle note: <strong>${newGrade}/20</strong></div>
             <div class="tooltip-row">Impact sur le module: <strong>+${moduleImprovement} points</strong></div>
+            <div class="tooltip-row">Efficacité: <strong>${efficiencyPercentage}%</strong> (impact/point)</div>
         </div>
     `;
 }
