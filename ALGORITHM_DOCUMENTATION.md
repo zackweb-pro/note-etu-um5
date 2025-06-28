@@ -148,20 +148,24 @@ Si cette note maximale théorique est inférieure à 12/20, l'algorithme ajuste 
 
 L'algorithme utilise quatre stratégies distinctes pour distribuer les points et sélectionne celle qui donne le meilleur résultat.
 
-### Stratégie 4: Distribution équilibrée
+### Stratégie 4: Distribution équilibrée (stratégie principale)
 
-Cette stratégie (`simulateBalancedDistribution`) vise à distribuer les points de manière équilibrée entre tous les éléments, évitant ainsi de concentrer les points uniquement sur les éléments ayant les coefficients les plus élevés:
+Cette stratégie (`simulateBalancedDistribution`) est désormais la stratégie principale et vise à distribuer les points de manière véritablement équitable entre tous les éléments, indépendamment de leurs coefficients:
 
 1. Comme pour les autres stratégies, l'algorithme commence par garantir le minimum de 5/20 pour tous les éléments
-2. Il calcule ensuite une distribution proportionnelle initiale:
-   - Chaque élément reçoit une quantité de points proportionnelle à son poids relatif
-   - Cette approche garantit que tous les éléments participent à l'amélioration
-3. Si cette distribution initiale n'est pas suffisante pour atteindre la validation:
-   - L'algorithme distribue des points supplémentaires en privilégiant les éléments qui ont reçu proportionnellement moins de points
-   - Cela crée un équilibre qui évite de concentrer les améliorations sur un seul élément, même si son coefficient est plus élevé
+2. Phase 1 - Distribution égale:
+   - Chaque élément éligible reçoit exactement la même quantité de points (indépendamment du poids)
+   - Cette approche garantit que tous les éléments participent équitablement à l'amélioration
+3. Phase 2 - Distribution anti-poids:
+   - Si la distribution égale n'est pas suffisante pour atteindre la validation, une deuxième phase débute
+   - Les éléments sont triés avec un biais explicite contre les poids élevés (inversement proportionnel au poids)
+   - Les éléments à poids faible sont donc priorisés, contrant l'avantage naturel des éléments à poids élevé
+   - Pour les éléments de poids similaires, les notes les plus basses sont prioritaires
 4. La stratégie respecte également les autres règles de distribution:
    - Maximum 5 points pour les notes > 10/20
    - Pas d'amélioration pour les éléments avec note ≥ 12/20
+
+Cette stratégie garantit une distribution équitable même lorsqu'un élément a un coefficient beaucoup plus élevé que les autres (par exemple 40% vs 30% vs 30%), évitant ainsi de concentrer tous les efforts sur un seul élément.
 
 Cette stratégie est particulièrement utile pour les modules ayant des éléments de poids très différents (ex: 40%, 30%, 30%), où une approche purement basée sur les coefficients concentrerait excessivement les points sur l'élément de plus grand poids.
 
@@ -217,10 +221,13 @@ La fonction `findBestStrategy` compare les résultats des quatre stratégies et 
 4. Parmi ces stratégies "efficaces", elle calcule un score d'équilibre basé sur plusieurs critères:
    - Le nombre d'éléments qui reçoivent des points (plus est mieux)
    - L'écart-type des contributions (moins est mieux)
-   - La corrélation entre les poids et les points ajoutés (moins est mieux, pour éviter de favoriser uniquement les éléments à fort coefficient)
+   - La corrélation entre les poids et les points ajoutés (moins est mieux, impact fortement amplifié)
+   - Nouveau: Un bonus d'anti-corrélation pour les modules avec des poids inégaux (détection automatique)
 5. La stratégie avec le meilleur score d'équilibre est sélectionnée
 
-Cette approche sophistiquée permet de sélectionner une solution qui est à la fois efficace (nombre de points proche du minimum) et équilibrée (distribution optimale entre les éléments). L'introduction du critère de corrélation poids-points permet spécifiquement d'éviter de concentrer tous les points sur un seul élément à coefficient élevé (comme 40%).
+Cette approche sophistiquée permet de sélectionner une solution qui est à la fois efficace (nombre de points proche du minimum) et équilibrée (distribution optimale entre les éléments). Le système détecte automatiquement les cas où un élément a un poids significativement plus élevé que les autres, et applique alors un bonus important aux stratégies qui évitent de concentrer les points sur cet élément.
+
+L'ordre de priorité des stratégies a également été modifié: la stratégie de distribution équilibrée (Stratégie 4) est désormais considérée en premier, avant même la stratégie d'optimisation du nombre total de points, ce qui reflète l'importance accordée à l'équilibre de la distribution.
 
 ## Interface utilisateur et informations visuelles
 

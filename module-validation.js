@@ -1,22 +1,7 @@
 // Module Validation Helper Functions for UM5 Notes Calculator
 // This file contains additional functions to calculate points needed to validate modules
 
-// Func    // Strategy 3: Minimize total points added (now our primary strategy)
-        const strategy3 = simulateMinTotalPoints();
-        strategies.push(strategy3);
-        
-        // Strategy 4: Balanced distribution across all elements
-        const strategy4 = simulateBalancedDistribution();
-        strategies.push(strategy4);
-        
-        // Strategy 1: Prioritize lowest grades first, especially below 5
-        const strategy1 = simulateLowScoreFirst();
-        strategies.push(strategy1);
-        
-        // Strategy 2: Prioritize highest-weighted elements first
-        const strategy2 = simulateHighWeightFirst();
-        strategies.push(strategy2);
-// culate element weights within a module
+// Function to calculate element weights within a module
 function calculateElementWeights(module) {
     if (!module.elements || module.elements.length === 0) {
         return;
@@ -177,13 +162,13 @@ function calculatePointsNeeded(module) {
     function simulatePointAllocation() {
         const strategies = [];
         
-        // Strategy 3: Optimize for minimum total points added (now our primary strategy)
-        const strategy3 = simulateMinTotalPoints();
-        strategies.push(strategy3);
-        
-        // Strategy 4: Balanced distribution across all elements (avoids focusing only on high-weighted elements)
+        // Strategy 4: Balanced distribution across all elements (now our primary strategy)
         const strategy4 = simulateBalancedDistribution();
         strategies.push(strategy4);
+        
+        // Strategy 3: Optimize for minimum total points added
+        const strategy3 = simulateMinTotalPoints();
+        strategies.push(strategy3);
         
         // Strategy 1: Prioritize lowest grades first, especially below 5
         const strategy1 = simulateLowScoreFirst();
@@ -234,27 +219,31 @@ function calculatePointsNeeded(module) {
             return result;
         }
         
-        // Sort elements by score (lowest first for prioritization)
-        const remainingElements = eligibleElements.filter(
-            element => !result.elementPointsToAdd[element.name] || 
-                      (element.calculatedNote + result.elementPointsToAdd[element.name]) < 10
-        ).sort((a, b) => a.calculatedNote - b.calculatedNote);
+        // COMPLETELY BALANCED APPROACH: Ignore weights for distribution, focus on equity
+        // Get elements that still need improvements
+        const remainingElements = eligibleElements.filter(element => 
+            (element.calculatedNote + (result.elementPointsToAdd[element.name] || 0)) < 12
+        );
         
-        // Calculate a balanced distribution factor to prevent focusing only on highest-weight elements
-        // We'll distribute points proportionally to all elements, with adjustments for current grade
-        const totalRemainingWeight = remainingElements.reduce((sum, el) => sum + el.normalizedWeight, 0);
+        if (remainingElements.length === 0) {
+            return result;
+        }
         
-        if (totalRemainingWeight > 0) {
-            // Distribute initial points proportionally among all elements based on weights
+        // Calculate initial equal distribution of points (ignoring weights)
+        // This will ensure that all elements receive improvements
+        
+        // Phase 1: Equal Distribution - give each element the same amount of points
+        const numElements = remainingElements.length;
+        if (numElements > 0) {
+            // Start with equal distribution (completely balanced)
+            let equalPoints = pointsStillNeeded / numElements;
+            
+            // Apply first round of equal distribution
             for (const element of remainingElements) {
-                // Determine how many proportional points this element should get
-                const elementShare = (element.normalizedWeight / totalRemainingWeight) * pointsStillNeeded;
-                
                 // Apply rule: Never add more than 5 points to elements with score > 10
                 const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
-                
                 const currentPoints = result.elementPointsToAdd[element.name] || 0;
-                const additionalPoints = Math.min(elementShare, maxAllowedPoints - currentPoints);
+                const additionalPoints = Math.min(equalPoints, maxAllowedPoints - currentPoints);
                 
                 if (additionalPoints > 0) {
                     result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
@@ -269,12 +258,14 @@ function calculatePointsNeeded(module) {
                 currentModuleImprovement += pointsAdded * element.normalizedWeight;
             });
             
-            // If we still haven't reached the target, distribute remaining points
-            // using inverse weight prioritization (to balance the distribution)
+            // Phase 2: If we still need more points, focus on the most efficient elements
+            // BUT with a strong penalty for high-weighted elements to keep balance
             if (currentModuleImprovement < pointsNeeded - 0.01) {
                 const remainingNeeded = pointsNeeded - currentModuleImprovement;
                 
-                // Sort by inverse weight-to-current-points ratio to balance distribution
+                // Sort by an anti-weight bias formula that favors:
+                // 1. Elements with lower weights (to counteract the natural advantage of high-weighted elements)
+                // 2. Elements with lower scores (to prioritize improving weaker elements)
                 const balancingElements = eligibleElements
                     .filter(e => {
                         const current = result.elementPointsToAdd[e.name] || 0;
@@ -283,10 +274,19 @@ function calculatePointsNeeded(module) {
                     .sort((a, b) => {
                         const aPoints = result.elementPointsToAdd[a.name] || 0;
                         const bPoints = result.elementPointsToAdd[b.name] || 0;
-                        // This sorts by lowest (points/weight) first, balancing the distribution
-                        return (aPoints / a.normalizedWeight) - (bPoints / b.normalizedWeight);
+                        
+                        // Anti-weight bias - explicitly reverse the weight advantage
+                        // Lower weight gets priority, and if weights are similar, prioritize lower score
+                        const weightBias = b.normalizedWeight - a.normalizedWeight;
+                        if (Math.abs(weightBias) > 0.05) { // If weights differ significantly
+                            return weightBias; // Higher priority to lower-weighted elements
+                        } else {
+                            // If weights are similar, prioritize by score
+                            return a.calculatedNote - b.calculatedNote;
+                        }
                     });
                 
+                // Second round of distribution using the anti-weight bias
                 for (const element of balancingElements) {
                     const currentPoints = result.elementPointsToAdd[element.name] || 0;
                     const maxAdditional = element.calculatedNote > 10 ? 
@@ -295,8 +295,13 @@ function calculatePointsNeeded(module) {
                     
                     if (maxAdditional <= 0) continue;
                     
+                    // Use the effective weight (inverted) to distribute points
+                    const effectiveWeight = 1 / Math.max(0.1, element.normalizedWeight); // Invert the weight
+                    const normalizedEffectiveWeight = effectiveWeight / balancingElements.reduce((sum, el) => 
+                        sum + (1 / Math.max(0.1, el.normalizedWeight)), 0);
+                    
                     const additionalPoints = Math.min(
-                        remainingNeeded / element.normalizedWeight,
+                        remainingNeeded * normalizedEffectiveWeight * 2, // Multiply by 2 to make it more aggressive
                         maxAdditional
                     );
                     
@@ -694,8 +699,19 @@ function calculatePointsNeeded(module) {
                 const points = Object.values(contributions).map(c => c.pointsAdded);
                 const weightPointCorrelation = Math.abs(correlation(weights, points));
                 
+                // Check if weights are uneven (one element has significantly higher weight)
+                const maxWeight = Math.max(...weights);
+                const weightUnevenness = maxWeight - (1 / numElements);
+                
+                // Balance score components:
+                // 1. More elements is better (multiplier 2)
+                // 2. Lower stddev is better (penalty multiplier 3)
+                // 3. Lower correlation with weights is better (penalty multiplier 8 - increased from 5)
+                // 4. NEW: Add a bonus when weights are uneven (to enforce balanced distribution)
+                const unevennessBonus = weightUnevenness > 0.1 ? (1 - weightPointCorrelation) * 10 : 0;
+                
                 // Balance score: more elements is better, lower stddev is better, lower correlation is better
-                const balanceScore = numElements * 2 - stdDev * 3 - weightPointCorrelation * 5;
+                const balanceScore = numElements * 2 - stdDev * 3 - weightPointCorrelation * 8 + unevennessBonus;
                 
                 return { 
                     strategy, 
