@@ -273,10 +273,16 @@ function calculatePointsNeeded(module) {
                     const boostFactor = Math.max(1.5, Math.min(3.0, weightDisparity * 1.2));
                     const targetPoints = pointsStillNeeded * inverseWeightRatio * boostFactor;
                     
-                    // Apply rule: Never add more than 5 points to elements with score > 10
+                    // Check if this element is exempt from the 5-point contribution limit
+                    const isExempt = isExemptFromPointLimit(element, eligibleElements, result.elementPointsToAdd[element.name] || 0);
+                    
+                    // Apply rules:
+                    // 1. Never add more than 5 points to elements with score > 10
+                    // 2. Never add more than 5 points total unless exempt (needs to reach min 5/20, has score 0, or is the only element that can contribute)
                     const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
                     const currentPoints = result.elementPointsToAdd[element.name] || 0;
-                    const additionalPoints = Math.min(targetPoints, maxAllowedPoints - currentPoints);
+                    const maxContribution = isExempt ? maxAllowedPoints : Math.min(5, maxAllowedPoints);
+                    const additionalPoints = Math.min(targetPoints, maxContribution - currentPoints);
                     
                     if (additionalPoints > 0) {
                         result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
@@ -289,10 +295,15 @@ function calculatePointsNeeded(module) {
                 
                 // Apply first round of equal distribution
                 for (const element of remainingElements) {
-                    // Apply rule: Never add more than 5 points to elements with score > 10
+                    // Check if this element is exempt from the 5-point contribution limit
+                    const isExempt = isExemptFromPointLimit(element, eligibleElements, result.elementPointsToAdd[element.name] || 0);
+                          // Apply multiple rules:
+                // 1. Never add more than 5 points to elements with score > 10
+                // 2. Never add more than 5 points total unless exempt
                     const maxAllowedPoints = element.calculatedNote > 10 ? 5 : 20 - element.calculatedNote;
                     const currentPoints = result.elementPointsToAdd[element.name] || 0;
-                    const additionalPoints = Math.min(equalPoints, maxAllowedPoints - currentPoints);
+                    const maxContribution = isExempt ? maxAllowedPoints : Math.min(5, maxAllowedPoints);
+                    const additionalPoints = Math.min(equalPoints, maxContribution - currentPoints);
                     
                     if (additionalPoints > 0) {
                         result.elementPointsToAdd[element.name] = (currentPoints + additionalPoints);
@@ -352,9 +363,21 @@ function calculatePointsNeeded(module) {
                 // Second round of distribution using the anti-weight bias
                 for (const element of balancingElements) {
                     const currentPoints = result.elementPointsToAdd[element.name] || 0;
-                    const maxAdditional = element.calculatedNote > 10 ? 
-                        Math.min(5 - currentPoints, 20 - element.calculatedNote - currentPoints) : 
-                        20 - element.calculatedNote - currentPoints;
+                    // Check if this element is exempt from the 5-point limit
+                    const isExempt = isExemptFromPointLimit(element, eligibleElements, currentPoints);
+                    
+                    // Apply both the 5-point limit for notes > 10 and the 5-point total limit (unless exempt)
+                    let maxAdditional;
+                    if (element.calculatedNote > 10) {
+                        // For notes > 10, max 5 points total
+                        maxAdditional = Math.min(5 - currentPoints, 20 - element.calculatedNote - currentPoints);
+                    } else if (!isExempt) {
+                        // Apply 5-point limit if not exempt
+                        maxAdditional = Math.min(5 - currentPoints, 20 - element.calculatedNote - currentPoints);
+                    } else {
+                        // Exempt from 5-point limit (but still capped at maximum possible)
+                        maxAdditional = 20 - element.calculatedNote - currentPoints;
+                    }
                     
                     if (maxAdditional <= 0) continue;
                     
@@ -446,8 +469,20 @@ function calculatePointsNeeded(module) {
                 // Calculate optimal points for this element
                 const maxPointsPossible = 20 - element.calculatedNote;
                 
-                // Apply rule: Never add more than 5 points to elements with score > 10
-                const maxAllowedPoints = element.calculatedNote > 10 ? 5 : maxPointsPossible;
+                // Check if element is exempt from 5-point limit
+                const isExempt = isExemptFromPointLimit(element, elements);
+                
+                // Apply rules:
+                // 1. Never add more than 5 points to elements with score > 10
+                // 2. Never add more than 5 points total unless exempt
+                let maxAllowedPoints;
+                if (element.calculatedNote > 10) {
+                    maxAllowedPoints = 5; // Rule 1: Max 5 points for elements > 10
+                } else if (isExempt) {
+                    maxAllowedPoints = maxPointsPossible; // Exempt from 5-point limit
+                } else {
+                    maxAllowedPoints = Math.min(5, maxPointsPossible); // Rule 2: 5-point limit
+                }
                 
                 const pointsForElement = Math.min(
                     pointsStillNeeded / element.normalizedWeight,
@@ -499,8 +534,20 @@ function calculatePointsNeeded(module) {
             // Calculate how many points to add (maximal impact)
             const maxPointsPossible = 20 - element.calculatedNote;
             
-            // Apply rule: Never add more than 5 points to elements with score > 10
-            const maxAllowedPoints = element.calculatedNote > 10 ? 5 : maxPointsPossible;
+            // Check if element is exempt from 5-point limit
+            const isExempt = isExemptFromPointLimit(element, elements);
+            
+            // Apply both rules:
+            // 1. Max 5 points for elements with score > 10
+            // 2. Max 5 points unless exempt from limit
+            let maxAllowedPoints;
+            if (element.calculatedNote > 10) {
+                maxAllowedPoints = 5; // Rule 1
+            } else if (isExempt) {
+                maxAllowedPoints = maxPointsPossible; // Exempt from 5-point limit
+            } else {
+                maxAllowedPoints = Math.min(5, maxPointsPossible); // Rule 2: Apply 5-point limit
+            }
             
             const pointsForElement = Math.min(
                 pointsStillNeeded / element.normalizedWeight,
@@ -570,9 +617,23 @@ function calculatePointsNeeded(module) {
             // Add points to the most efficient element
             const bestElement = sortedElements[0];
             const maxPointsPossible = 20 - bestElement.calculatedNote;
+            
+            // Check if element is exempt from 5-point limit
+            const isExempt = isExemptFromPointLimit(bestElement, elements);
+            
+            // Apply rules
+            let maxAllowedPoints;
+            if (bestElement.calculatedNote > 10) {
+                maxAllowedPoints = 5; // Rule 1: Max 5 points for scores > 10
+            } else if (isExempt) {
+                maxAllowedPoints = maxPointsPossible; // Exempt
+            } else {
+                maxAllowedPoints = Math.min(5, maxPointsPossible); // Rule 2: 5-point limit
+            }
+            
             const pointsForElement = Math.min(
                 pointsStillNeeded / bestElement.normalizedWeight,
-                maxPointsPossible
+                maxAllowedPoints
             );
             
             const currentPoints = result.elementPointsToAdd[bestElement.name] || 0;
@@ -591,10 +652,23 @@ function calculatePointsNeeded(module) {
             // Skip elements that already have improvements to 5
             const currentPoints = result.elementPointsToAdd[element.name] || 0;
             
-            // Apply rule: Never add more than 5 points to elements with score > 10
-            const maxAdditional = element.calculatedNote > 10 ? 
-                Math.min(5, 20 - (element.calculatedNote + currentPoints)) : 
-                20 - (element.calculatedNote + currentPoints);
+            // Check if element is exempt from 5-point limit
+            const isExempt = isExemptFromPointLimit(element, elements, currentPoints);
+            
+            // Apply both rules:
+            // 1. Never add more than 5 points to elements with score > 10
+            // 2. Never add more than 5 points total unless exempt
+            let maxAdditional;
+            if (element.calculatedNote > 10) {
+                // Rule 1: Max 5 points for elements with score > 10
+                maxAdditional = Math.min(5, 20 - (element.calculatedNote + currentPoints));
+            } else if (isExempt) {
+                // Exempt from 5-point rule (but still max 20)
+                maxAdditional = 20 - (element.calculatedNote + currentPoints);
+            } else {
+                // Rule 2: Apply 5-point limit for non-exempt elements
+                maxAdditional = Math.min(5 - currentPoints, 20 - (element.calculatedNote + currentPoints));
+            }
             
             if (maxAdditional <= 0) return;
             
@@ -910,6 +984,24 @@ function createValidationTooltip(element, module) {
     const contributionPercentage = totalPointsAdded > 0 
         ? Math.round((element.pointsToAdd / totalPointsAdded) * 100) 
         : 0;
+        
+    // Check if this element is exempt from the 5-point limit
+    const isExempt = isExemptFromPointLimit(element, module.elements);
+    let exemptReasonText = "";
+    if (isExempt) {
+        if (element.calculatedNote < 5) {
+            exemptReasonText = "Doit atteindre le minimum de 5/20";
+        } else if (element.calculatedNote === 0) {
+            exemptReasonText = "Note actuelle 0/20, minimum 5 points requis";
+        } else {
+            // Check if it's the only element that can contribute
+            const otherContributableElements = module.elements.filter(e => 
+                e.name !== element.name && e.calculatedNote < 12 && e.calculatedNote < 20);
+            if (otherContributableElements.length === 0) {
+                exemptReasonText = "Seul élément pouvant contribuer";
+            }
+        }
+    }
     
     return `
         <div class="validation-tooltip">
@@ -921,6 +1013,7 @@ function createValidationTooltip(element, module) {
             <div class="tooltip-row">Nouvelle note: <strong>${newGrade}/20</strong></div>
             <div class="tooltip-row">Impact sur le module: <strong>+${moduleImprovement} points</strong></div>
             <div class="tooltip-row">Efficacité: <strong>${efficiencyPercentage}%</strong> (impact/point)</div>
+            ${isExempt ? `<div class="exempt-tooltip">${exemptReasonText}</div>` : ''}
         </div>
     `;
 }
@@ -975,22 +1068,56 @@ function applyValidationIndicators(modules) {
                 // Only add validation indicators for non-valid modules without session 2 notes
                 if (!currentModule.isValid && currentModule.finalNote < 12 && !currentModule.hasSession2Data) {
                     const element = currentModule.elements.find(e => e.name === moduleName);
-                    if (element && element.pointsToAdd > 0) {
-                        // Create indicator element
-                        const indicatorDiv = document.createElement('div');
-                        indicatorDiv.className = 'validation-indicator';
-                        indicatorDiv.innerHTML = `
-                            <span class="points-badge">+${Math.ceil(element.pointsToAdd * 10) / 10}</span>
-                            ${createValidationTooltip(element, currentModule)}
-                        `;
+                    if (element) {
+                        // Check if this element is exempt from the 5-point limit
+                        const isExempt = isExemptFromPointLimit(element, currentModule.elements);
+                        if (isExempt) {
+                            row.classList.add('exempt-from-point-limit');
+                        }
                         
-                        // Add to the row
-                        const noteCell = cells[2]; // Session 1 note cell
-                        noteCell.style.position = 'relative';
-                        noteCell.appendChild(indicatorDiv);
+                        if (element.pointsToAdd > 0) {
+                            // Create indicator element
+                            const indicatorDiv = document.createElement('div');
+                            indicatorDiv.className = 'validation-indicator';
+                            indicatorDiv.innerHTML = `
+                                <span class="points-badge">+${Math.ceil(element.pointsToAdd * 10) / 10}</span>
+                                ${createValidationTooltip(element, currentModule)}
+                            `;
+                            
+                            // Add to the row
+                            const noteCell = cells[2]; // Session 1 note cell
+                            noteCell.style.position = 'relative';
+                            noteCell.appendChild(indicatorDiv);
+                        }
                     }
                 }
             }
         }
     });
+}
+
+// Helper function to check if an element is exempt from the 5-point contribution limit
+function isExemptFromPointLimit(element, elements, currentPoints = 0) {
+    // Case 1: Element has a current note < 5, needs to reach minimum of 5/20
+    if ((element.calculatedNote + currentPoints) < 5) {
+        return true;
+    }
+    
+    // Case 2: Element has a score of 0, needs 5 points to reach minimum
+    if (element.calculatedNote === 0) {
+        return true;
+    }
+    
+    // Case 3: It's the only element that can contribute (all others are at max or >= 12)
+    const otherContributableElements = elements.filter(e => 
+        e.name !== element.name && 
+        e.calculatedNote < 12 && 
+        e.calculatedNote < 20);
+        
+    if (otherContributableElements.length === 0) {
+        return true;
+    }
+    
+    // Not exempt, standard 5-point limit applies
+    return false;
 }
