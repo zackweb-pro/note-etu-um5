@@ -209,9 +209,13 @@
 /* Summary Cards */
 .modules-summary {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
-    margin: 32px 0;
+    margin-bottom: 25px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     position: relative;
     z-index: 2;
 }
@@ -545,37 +549,119 @@
     box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5) !important;
 }
 
+/* Status Container Styling */
+.status-container {
+    margin: 25px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    text-align: center;
+}
+
+.status-display {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.status-label {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.status-label i {
+    color: #fff3cd;
+}
+
+.status-value {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: 2.5rem;
+    letter-spacing: 0.05em;
+    padding: 10px 40px;
+    border-radius: 40px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+}
+
+.status-admis {
+    background: rgba(20, 184, 81, 0.3);
+    color: #D1FFD6;
+    text-shadow: 0 2px 10px rgba(70, 230, 90, 0.7);
+    border: 2px solid rgba(70, 230, 90, 0.4);
+}
+
+.status-ajourne {
+    background: rgba(184, 20, 20, 0.3);
+    color: #FFD1D1;
+    text-shadow: 0 2px 10px rgba(230, 70, 70, 0.7);
+    border: 2px solid rgba(230, 70, 70, 0.4);
+}
+
+.status-explanation {
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 600px;
+    margin: 0 auto;
+    /* background: rgba(255, 255, 255, 0.08); */
+    border-radius: 12px;
+    /* padding: 3px 10px; */
+}
+.status-explanation p{
+    font-size: 8px !important;
+    font-weight: bold !important;
+}
+
+/* .status-explanation i {
+    color: #fff3cd;
+    margin-right: 5px;
+} */
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .um5-notes-calculator {
-        padding: 24px 20px;
-        margin: 16px 0;
-        border-radius: 20px;
-    }
-    
-    .calculator-header h4 {
-        font-size: 1.5rem;
-    }
-    
-    .semester-averages,
-    .modules-summary {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-    
-    .average-display {
-        flex-direction: column;
-        gap: 12px;
-        text-align: center;
         padding: 20px;
+        margin: 16px 0;
+    }
+    
+    .calculator-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .extension-badge {
+        align-self: flex-start;
     }
     
     .main-average .average-value {
         font-size: 2rem;
     }
     
-    .average-value {
-        font-size: 1.5rem;
+    .semester-averages {
+        grid-template-columns: 1fr;
+    }
+    
+    .modules-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-value {
+        font-size: 2rem;
+        padding: 8px 25px;
+    }
+    
+    .status-explanation {
+        font-size: 0.85rem;
+        padding: 10px 15px;
     }
 }
 

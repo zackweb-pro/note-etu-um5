@@ -158,12 +158,21 @@
         // Create the display element
         const displayDiv = document.createElement('div');
         displayDiv.id = `${EXTENSION_ID}-display`;
-        displayDiv.className = 'um5-notes-calculator';        const validModules = modules.filter(module => module.isValid);
-        const invalidModules = modules.filter(module => !module.isValid);        displayDiv.innerHTML = `
+        displayDiv.className = 'um5-notes-calculator';
+        
+        const validModules = modules.filter(module => module.isValid);
+        const invalidModules = modules.filter(module => !module.isValid);
+        
+        // Determine if student is Admis or Ajourné
+        const studentStatus = determineStatus(average, modules.length, invalidModules.length);
+        
+        displayDiv.innerHTML = `
             <div class="calculator-header">
                 <h4><i class="fas fa-chart-line"></i> Moyennes Calculées</h4>
                 <span class="extension-badge"><i class="fas fa-university"></i> Extension UM5</span>
-            </div>            <div class="averages-container">
+            </div>
+            
+            <div class="averages-container">
                 <div class="average-display main-average">
                     <span class="average-label"><i class="fas fa-trophy"></i> Moyenne Générale:</span>
                     <span class="average-value ${getAverageColorClass(average)}">${average}/20</span>
@@ -190,7 +199,19 @@
                     <span class="summary-label"><i class="fas fa-book"></i> Total Modules:</span>
                     <span class="summary-value">${modules.length}</span>
                 </div>
-            </div>            <div class="calculation-details">
+            </div>
+            
+            <div class="status-container">
+                <div class="status-display">
+                    <span class="status-label"><i class="fas fa-graduation-cap"></i> Statut:</span>
+                    <span class="status-value ${studentStatus.isAdmis ? 'status-admis' : 'status-ajourne'}">${studentStatus.status}</span>
+                </div>
+                <div class="status-explanation">
+                    <p><i class="fas fa-info-circle"></i> Pour être admis: Moyenne ≥ 12 et Modules Non Validés ≤ ${studentStatus.maxAllowedNonValidated} (1/4 du total)</p>
+                </div>
+            </div>
+            
+            <div class="calculation-details">
                 <!-- <button class="toggle-details"><i class="fas fa-info-circle"></i> Voir les détails</button> -->
                 <div class="details-content" style="display: none;">
                     <h5><i class="fas fa-list-alt"></i> Tous les modules inclus dans le calcul:</h5>
@@ -336,7 +357,26 @@
     function getAverageColorClass(averageValue) {
         const numericValue = parseFloat(averageValue);
         return numericValue >= 12.0 ? 'average-passing' : 'average-failing';
-    }// Main function to run the calculator
+    }
+    
+    // Function to determine if student is Admis or Ajourné
+    function determineStatus(generalAverage, totalModules, nonValidatedModules) {
+        const minimumAverage = 12.0;
+        const maxAllowedNonValidated = Math.floor(totalModules / 4);
+        
+        // Student is Admis if average is at least 12 AND non-validated modules 
+        // are not more than 1/4 of total modules
+        const isAdmis = parseFloat(generalAverage) >= minimumAverage && 
+                        nonValidatedModules <= maxAllowedNonValidated;
+        
+        return {
+            status: isAdmis ? 'Admis' : 'Ajourné',
+            isAdmis: isAdmis,
+            maxAllowedNonValidated: maxAllowedNonValidated
+        };
+    }
+
+    // Main function to run the calculator
     function runCalculator() {
         if (!isExtensionActive || !isNotesPage()) {
             return;

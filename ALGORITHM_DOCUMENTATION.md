@@ -278,7 +278,7 @@ Le niveau de confiance est déterminé en fonction du nombre d'éléments dans l
 - Pour 2 éléments: confiance moyenne à élevée (selon la différence entre les poids)
 - Pour 3+ éléments: confiance plus faible (estimation)
 
-De plus, pour les éléments exemptés de la limite des 4 points, une indication spéciale apparaît dans l'infobulle expliquant la raison de l'exemption:
+De plus, pour les éléments exemptés de la limite des 5 points, une indication spéciale apparaît dans l'infobulle expliquant la raison de l'exemption:
 - "Doit atteindre le minimum de 5/20" pour les éléments avec note < 5
 - "Note actuelle 0/20, minimum 5 points requis" pour les éléments avec note de 0
 - "Seul élément pouvant contribuer" quand tous les autres éléments sont déjà à leur maximum ou ≥ 12
@@ -362,8 +362,8 @@ Stratégie optimale:
 1. D'abord, augmenter EM1 à 5/20 (minimum requis): +1 point
 2. Ensuite, distribuer les points restants pour atteindre 12/20:
    - Ajouter 7 points supplémentaires à EM1 (12/20)
-   - Ajouter 4 points à EM2 (14/20)
-3. Nouvelle note du module: (12*0.5 + 14*0.5) = 13/20
+   - Ajouter 5 points à EM2 (15/20)
+3. Nouvelle note du module: (12*0.5 + 15*0.5) = 13.5/20
 
 Cet exemple montre comment l'algorithme s'assure d'abord que tous les éléments atteignent la note minimale de 5/20 avant d'optimiser la distribution des points.
 
@@ -388,10 +388,10 @@ La stratégie qui optimiserait uniquement le nombre de points minimaux nécessai
 1. L'algorithme détecte la disparité des poids (50% vs 30% vs 20%)
 2. Il applique une fonction de pondération inverse au carré pour contrebalancer cette disparité
 3. Distribution équilibrée résultante:
-   - Ajouter 4 points à EM1 (13/20)
+   - Ajouter 5 points à EM1 (14/20)
    - Ajouter 5 points à EM2 (13/20)
    - Ajouter 6 points à EM3 (14/20)
-4. Nouvelle note du module: (13*0.5 + 13*0.3 + 14*0.2) = 13.2/20
+4. Nouvelle note du module: (14*0.5 + 13*0.3 + 14*0.2) = 13.7/20
 
 #### 5.2: Élément central à coefficient élevé
 
@@ -413,9 +413,9 @@ Note actuelle: 8.5/20
 2. Il applique la même fonction de pondération inverse au carré
 3. Distribution équilibrée résultante:
    - Ajouter 5 points à EM1 (14/20)
-   - Ajouter 4 points à EM2 (12/20)
+   - Ajouter 5 points à EM2 (13/20)
    - Ajouter 5 points à EM3 (13/20)
-4. Nouvelle note du module: (14*0.25 + 12*0.5 + 13*0.25) = 12.75/20
+4. Nouvelle note du module: (14*0.25 + 13*0.5 + 13*0.25) = 13.25/20
 
 #### 5.3: Dernier élément à coefficient élevé
 
