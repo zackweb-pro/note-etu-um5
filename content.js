@@ -394,6 +394,8 @@
         highlightNotesInTable(modules, generalAverage);
         
         // Apply validation indicators for non-validated modules
+        // This function is defined in module-validation.js and adds visual indicators
+        // showing how many points are needed to validate each non-validated module
         applyValidationIndicators(modules);
         
         console.log(`UM5 Notes Calculator: Calculated average = ${generalAverage}`);

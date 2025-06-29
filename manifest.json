@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UM5 Notes Calculator",
-  "version": "1.0",
+  "version": "2.0",
   "description": "Automatically calculates and displays general notes for UM5 student portal",
   "permissions": [
     "activeTab",
